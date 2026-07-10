@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>青ノ探偵</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html,body { height:100%; height:100dvh; background:#111418; font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif; overflow:hidden; }
+  body { display:flex; align-items:center; justify-content:center; }
+  /* 100dvh＝ブラウザのツールバーを除いた「実際に見えている高さ」。スマホの上下見切れ対策 */
+  #phone { position:relative; width:100%; max-width:420px; height:100vh; height:100dvh; max-height:880px; background:#000; overflow:hidden; }
+  @media(min-width:440px){ #phone{ border-radius:32px; height:880px; } }
+
+  .layer { position:absolute; inset:0; display:none; }
+  .layer.on { display:block; }
+
+  /* ===== 共通メッセージ窓 ===== */
+  .msgbox { position:absolute; left:12px; right:12px; bottom:calc(14px + env(safe-area-inset-bottom, 0px)); z-index:25; display:none; }
+  /* 会話立ち絵（バストアップ） */
+  #busts{ position:absolute; left:0; right:0; bottom:0; height:42%; z-index:24; pointer-events:none; display:none; }
+  #busts.show{ display:block; }
+  #busts img{ position:absolute; bottom:-2%; height:100%; width:auto; opacity:0; transition:opacity .22s ease, filter .22s ease; filter:drop-shadow(0 6px 18px rgba(0,0,0,.35)); }
+  #bustL{ left:-10%; }
+  #bustR{ right:-10%; transform:scaleX(-1); } /* 右側キャラは内側を向くよう反転 */
+  #busts img.on{ opacity:1; }
+  #busts img.dim{ filter:brightness(.45) saturate(.65) drop-shadow(0 6px 18px rgba(0,0,0,.35)); }
+  .msgbox.show{ display:block; }
+  .nm { display:inline-block; background:linear-gradient(135deg,#3a4a63,#2a3242); color:#fff; padding:4px 14px; border-radius:10px 10px 0 0; font-size:13px; font-weight:bold; margin-left:6px; }
+  .nm.aota{ background:linear-gradient(135deg,#3f7bc4,#2c5a96); } .nm.akane{ background:linear-gradient(135deg,#e0607a,#c14a64); }
+  .box { background:rgba(20,24,30,.94); border:1px solid rgba(255,255,255,.12); border-radius:0 14px 14px 14px; padding:14px 16px; color:#f4f4f4; font-size:15px; line-height:1.65; min-height:80px; box-shadow:0 6px 20px rgba(0,0,0,.4); position:relative; }
+  .box.mono{ font-style:italic; color:#cfd8e2; }
+  .cue{ position:absolute; right:14px; bottom:9px; color:#ffd97a; font-size:12px; animation:blink 1s infinite; }
+  @keyframes blink{ 50%{opacity:.2} }
+  .btn { width:100%; background:linear-gradient(135deg,#fff,#eef2f7); color:#2a3242; border:none; border-radius:14px; padding:13px; font-size:15px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,.3); cursor:pointer; margin-top:8px; }
+  .btn:active{ transform:scale(.97); } .btn.clue{ border-left:5px solid #4a90d9; text-align:left; }
+
+  /* ===== タイトル ===== */
+  #title { background:url(assets/town/title_keyart.png) center top/cover no-repeat; }
+  #title .c{ display:none; } /* ロゴ・キャッチコピーはキーアートに焼き込み済み */
+  #title{ cursor:pointer; }
+  #title .start{ z-index:2; }
+  #title .tap{ width:fit-content; margin:0 auto; padding:9px 18px; border-radius:18px;
+    background:rgba(10,12,24,.55); border:1px solid rgba(160,170,255,.35);
+    text-align:center; font-size:13px; font-weight:bold; color:#e8ecff; letter-spacing:2px;
+    text-shadow:0 0 10px rgba(120,140,255,.8), 0 1px 4px rgba(0,0,0,.8); animation:tapPulse 1.8s ease-in-out infinite; }
+  @keyframes tapPulse{ 0%,100%{ opacity:.7 } 50%{ opacity:1 } }
+  #title .start{ position:absolute; left:0; right:0; top:50%; bottom:auto; transform:translateY(-50%); }
+
+  /* ===== 探索（商店街） ===== */
+  #sky { position:absolute; inset:0; background:url(assets/town/sky.png) center/cover no-repeat; image-rendering:pixelated; }
+  #sun { display:none; }
+  #far { position:absolute; left:0; bottom:30%; height:170px; background:url(assets/town/roofs.png) repeat-x left bottom; background-size:auto 200%; image-rendering:pixelated; }
+  #world { position:absolute; left:0; top:0; height:100%; }
+  #ground { position:absolute; left:0; right:0; bottom:0; height:30%; background:url(assets/town/ground.png) repeat left top; background-size:auto 60%; image-rendering:pixelated; }
+  #ground::after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg, rgba(120,60,30,0) 0%, rgba(90,45,25,.35) 100%); }
+  #ground::before{ content:""; position:absolute; top:0; left:0; right:0; height:6px; background:rgba(0,0,0,.14); }
+  .shop{ position:absolute; bottom:30%; width:190px; height:220px; }
+  .shop img.bld{ position:absolute; bottom:-6px; left:50%; transform:translateX(-50%); width:210px; image-rendering:pixelated; filter:drop-shadow(0 8px 12px rgba(0,0,0,.28)); }
+  .shop .sg{ position:absolute; bottom:196px; left:50%; transform:translateX(-50%); white-space:nowrap; background:#3a2b22; color:#ffe; font-size:12px; font-weight:bold; padding:3px 10px; border-radius:8px; z-index:2; }
+  .glow{ position:absolute; bottom:30%; width:28px; height:28px; margin-bottom:6px; border-radius:50%; background:#fff; box-shadow:0 0 0 0 rgba(255,236,150,.9); animation:kira 1.5s infinite; pointer-events:none; }
+  @keyframes kira{ 0%{box-shadow:0 0 0 0 rgba(255,236,150,.9);transform:scale(.85)} 70%{box-shadow:0 0 0 18px rgba(255,236,150,0);transform:scale(1.1)} 100%{box-shadow:0 0 0 0 rgba(255,236,150,0);transform:scale(.85)} }
+  .npc{ position:absolute; bottom:30%; width:64px; height:96px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; }
+  .npc .bub{ font-size:13px; background:#fff; color:#333; border-radius:10px; padding:1px 7px; margin-bottom:3px; box-shadow:0 2px 5px rgba(0,0,0,.2); animation:bobb 2.2s ease-in-out infinite; }
+  .npc .ch{ width:54px; height:72px; border-radius:50% 50% 18px 18px; display:flex; align-items:flex-start; justify-content:center; padding-top:8px; font-size:32px; }
+  .npc .spr{ width:100px; height:100px; flex-shrink:0; image-rendering:pixelated; margin-bottom:-7px; filter:drop-shadow(0 6px 5px rgba(0,0,0,.22)); }
+  @keyframes bobb{ 50%{ transform:translateY(-4px) } }
+  #aota{ position:absolute; bottom:calc(30% - 7px); width:110px; height:110px; margin-left:-55px; z-index:6; pointer-events:none; }
+  #aota img{ width:100%; height:100%; image-rendering:pixelated; filter:drop-shadow(0 6px 5px rgba(0,0,0,.25)); }
+  #marker{ position:absolute; bottom:30%; width:32px; height:13px; margin:0 0 -2px -16px; border-radius:50%; background:rgba(255,255,255,.2); border:2px solid #ffe08a; opacity:0; pointer-events:none; }
+  /* プロローグ（なくした色） */
+  #sky, #far, #worldwrap{ transition:filter 2.5s ease; }
+  body.prologue .npc, body.prologue .glow, body.prologue #obj, body.prologue #ph, body.prologue .shop .sg{ display:none !important; }
+  body.prologue #sky, body.prologue #far, body.prologue #worldwrap{ filter:saturate(1.3); }
+  body.prologue.drain #sky, body.prologue.drain #far, body.prologue.drain #worldwrap{ filter:grayscale(1) brightness(.72); }
+  body.prologue #aota{ width:84px; height:84px; margin-left:-42px; }
+  #pgirl{ position:absolute; bottom:calc(30% - 7px); width:84px; height:84px; margin-left:-42px; z-index:5; display:none; }
+  body.prologue #pgirl{ display:block; }
+  #pgirl img{ width:100%; height:100%; image-rendering:pixelated;
+    filter:drop-shadow(0 0 6px rgba(255,225,160,.9)) drop-shadow(0 0 14px rgba(255,210,140,.5)) drop-shadow(0 5px 5px rgba(0,0,0,.2)); }
+  body.drain #pgirl img{ filter:drop-shadow(0 0 6px rgba(200,200,210,.5)); }
+  #pgirl .bub{ position:absolute; top:-24px; left:50%; transform:translateX(-50%); font-size:12px; background:#fff; color:#333; border-radius:10px; padding:1px 8px; box-shadow:0 2px 5px rgba(0,0,0,.2); white-space:nowrap; animation:bobb 1.6s ease-in-out infinite; }
+  #pskip{ position:absolute; top:calc(12px + env(safe-area-inset-top, 0px)); right:12px; z-index:20; background:rgba(20,16,26,.55); color:#fff; font-size:12px; padding:6px 12px; border-radius:14px; display:none; cursor:pointer; }
+  body.prologue #pskip{ display:block; }
+  body.drain #pgirl .bub{ display:none; }
+  #phint{ position:absolute; top:calc(56px + env(safe-area-inset-top, 0px)); left:50%; transform:translate(-50%,0); z-index:20; background:rgba(40,30,24,.62); color:#fff; font-size:12px; font-weight:bold; padding:7px 14px; border-radius:14px; display:none; white-space:nowrap; max-width:92%; box-sizing:border-box; text-align:center; pointer-events:none; }
+  @keyframes hintBob{ 0%,100%{ transform:translate(-50%,0); } 50%{ transform:translate(-50%,-4px); } }
+  body.prologue #phint.show{ display:block; animation:hintBob 2s ease-in-out infinite; }
+  /* 変身カットイン（日常→集中モード） */
+  #cutin{ position:absolute; inset:0; z-index:60; display:none; overflow:hidden; background:rgba(8,10,22,.78); }
+  #cutin.on{ display:block; }
+  #cutin .band{ position:absolute; left:-10%; right:-10%; top:30%; height:40%; background:linear-gradient(100deg,#16294a,#2c5a96 45%,#152c52); transform:skewY(-6deg) translateX(-105%); box-shadow:0 0 40px rgba(0,0,0,.55); }
+  #cutin.on .band{ animation:bandin .28s ease-out forwards; }
+  @keyframes bandin{ to{ transform:skewY(-6deg) translateX(0); } }
+  #cutin .lines{ position:absolute; inset:0; background:repeating-linear-gradient(100deg, rgba(255,255,255,.07) 0 2px, transparent 2px 26px); opacity:0; }
+  #cutin.on .lines{ animation:linein .3s .1s forwards; }
+  @keyframes linein{ to{opacity:1} }
+  #cutin img{ position:absolute; left:50%; top:50%; width:min(70vw,340px); height:auto; transform:translate(-50%,-52%); image-rendering:pixelated; filter:drop-shadow(0 10px 24px rgba(0,0,0,.5)); }
+  #cutin .wflash{ position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; }
+  #marker.show{ animation:ping .6s ease-out; }
+  @keyframes ping{ from{opacity:1;transform:scale(.4)} to{opacity:0;transform:scale(1.4)} }
+  /* 逃げる黒い影 */
+  #runner{ position:absolute; bottom:30%; width:150px; height:170px; margin-left:-75px; opacity:0; z-index:8;
+    background:url(assets/npc/shadow_run.png) center bottom/contain no-repeat;
+    filter:drop-shadow(0 0 16px rgba(0,0,0,.55)); }
+  #runner.stand{ background-image:url(assets/npc/shadow_stand.png); width:110px; height:180px; margin-left:-55px; }
+  #runner.faceleft{ transform:scaleX(-1); }
+  #obj{ position:absolute; top:calc(10px + env(safe-area-inset-top, 0px)); left:10px; right:10px; z-index:15; color:#fff; font-size:12px; font-weight:bold; background:rgba(40,30,24,.55); padding:6px 10px; border-radius:10px; }
+  #ph{ position:absolute; top:42px; left:50%; transform:translateX(-50%); z-index:15; color:#fff; font-size:11px; background:rgba(0,0,0,.3); padding:3px 10px; border-radius:10px; opacity:0; transition:opacity .25s; }
+  #ph.show{ opacity:1; }
+
+  /* ===== 事件・推理シーン ===== */
+  #scene{ }
+  #sstage{ position:absolute; inset:0; transition:background .5s; }
+  #sclue{ position:absolute; top:10px; left:10px; right:10px; display:flex; gap:6px; flex-wrap:wrap; z-index:8; }
+  .cl{ background:rgba(255,255,255,.92); border-radius:10px; padding:5px 9px; font-size:11px; color:#333; box-shadow:0 2px 6px rgba(0,0,0,.25); border-left:4px solid #4a90d9; animation:pop .3s; }
+  @keyframes pop{ from{transform:scale(.6);opacity:0} to{transform:scale(1);opacity:1} }
+  .hot{ position:absolute; width:54px; height:54px; border-radius:50%; z-index:6; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .hot .g{ width:20px; height:20px; border-radius:50%; background:#fff; animation:kira 1.4s infinite; }
+  .hot.done .g{ background:#7a7; animation:none; opacity:.5; }
+  .sp{ position:absolute; bottom:38%; width:150px; height:200px; border-radius:90px 90px 24px 24px; display:flex; align-items:flex-start; justify-content:center; padding-top:30px; font-size:64px; opacity:0; transition:opacity .35s; }
+  .sp img{ width:190px; height:190px; flex-shrink:0; margin-top:-10px; image-rendering:pixelated; filter:drop-shadow(0 8px 10px rgba(0,0,0,.3)); }
+  /* 容疑者カード（聞き込み・指名） */
+  .btn.suspect{ display:flex; align-items:center; gap:10px; text-align:left; padding:8px 12px; }
+  .btn.suspect img{ width:46px; height:46px; flex-shrink:0; image-rendering:pixelated; }
+  .btn.suspect .scol{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .btn.suspect .sn{ font-weight:bold; }
+  .btn.suspect .sd{ font-size:11px; opacity:.85; white-space:normal; }
+  .btn.suspect.heard{ outline:2px solid rgba(255,224,138,.55); }
+  #sL{ left:50%; transform:translateX(-50%); } #sR{ right:10px; }
+  .sp.show{ opacity:1; }
+  #shint{ position:absolute; top:40px; left:50%; transform:translateX(-50%); color:rgba(255,255,255,.6); font-size:11px; z-index:9; }
+  #schoice{ position:absolute; left:12px; right:12px; bottom:118px; z-index:28; display:none; }
+  #scut{ position:absolute; inset:0; z-index:30; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.55); overflow:hidden; }
+  #scut.show{ display:flex; }
+  #scut .band{ position:absolute; left:-10%; right:-10%; height:120px; transform:rotate(-7deg); background:linear-gradient(90deg,#c14a64,#e0607a,#ffd97a); box-shadow:0 0 30px rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; animation:slide .5s cubic-bezier(.2,.8,.2,1); }
+  @keyframes slide{ from{transform:translateX(-30%) rotate(-7deg);opacity:0} to{transform:translateX(0) rotate(-7deg);opacity:1} }
+  #scut .band span{ color:#fff; font-size:30px; font-weight:900; letter-spacing:3px; text-shadow:0 2px 6px rgba(0,0,0,.4); }
+
+  /* 結果 */
+  #result{ background:radial-gradient(circle at 50% 35%,#3a3050,#15171f); }
+  #result .p{ position:relative; z-index:2; text-align:center; color:#fff; margin-top:24%; }
+  #result h2{ font-size:30px; color:#ffe08a; text-shadow:0 2px 12px rgba(255,200,80,.5); animation:pop .5s; }
+  #result .st{ font-size:32px; margin:14px 0; letter-spacing:6px; }
+  #result p{ font-size:14px; color:#dde3ea; line-height:1.8; padding:0 26px; }
+  #result .start{ position:absolute; left:24px; right:24px; bottom:48px; }
+
+  /* 演出オーバーレイ */
+  #flash{ position:absolute; inset:0; background:#fff; opacity:0; z-index:40; pointer-events:none; }
+  #fade{ position:absolute; inset:0; background:#000; opacity:0; z-index:45; pointer-events:none; transition:opacity .45s; }
+  #dark{ position:absolute; inset:0; background:rgba(10,8,16,.0); z-index:7; pointer-events:none; transition:background .5s; }
+  .sparkle{ position:absolute; font-size:20px; animation:floatUp 1.6s ease-out forwards; pointer-events:none; z-index:35; }
+  @keyframes floatUp{ from{transform:translateY(0) scale(.5);opacity:1} to{transform:translateY(-120px) scale(1.2);opacity:0} }
+</style>
+</head>
+<body>
+<div id="phone">
+
+  <!-- タイトル -->
+  <div id="title" class="layer" onclick="playBgm('town');toExplore(true)">
+    <div class="c"><h1>青ノ探偵</h1><div class="s">― 橙ヶ丘商店街のナゾ ―</div>
+      <div class="e">町を歩く → 事件 → 推理 → 解決</div></div>
+    <div class="start"><div class="tap">▶ タップではじめる</div></div>
+  </div>
+
+  <!-- 探索（商店街） -->
+  <div id="explore" class="layer">
+    <div id="sky"><div id="sun"></div></div>
+    <div id="far"></div>
+    <div id="worldwrap" style="position:absolute;inset:0;">
+      <div id="world">
+        <div id="ground"></div>
+        <div id="runner"></div>
+        <div id="marker"></div>
+        <div id="pgirl"><div class="bub">こっち！</div><img src="assets/prologue/girl.png" alt=""></div>
+        <div id="aota"><img id="aotaSpr" src="assets/aota/idle_side.png" alt=""></div>
+      </div>
+    </div>
+    <div id="dark"></div>
+    <div id="pskip">スキップ ▸</div>
+    <div id="phint">🖐 タップかスワイプで、あの子を追いかけよう ➡</div>
+    <div id="cutin"><div class="band"></div><div class="lines"></div><img id="cutinImg" src="assets/aota/idle_front.png" alt=""><div class="wflash" id="cutinFlash"></div></div>
+    <div id="obj">🎯 ノートを買いに、星野文具店へ行こう（画面タップで歩く）</div>
+    <div id="ph"></div>
+    <div id="busts"><img id="bustL" alt=""><img id="bustR" alt=""></div>
+    <div id="etalk" class="msgbox"><div id="enm" class="nm aota">明智 青太</div><div id="ebox" class="box"><span id="ett"></span><span id="ecue" class="cue">▼</span></div></div>
+  </div>
+
+  <!-- 事件・推理 -->
+  <div id="scene" class="layer">
+    <div id="sstage"></div>
+    <div id="sclue"></div>
+    <div id="sL" class="sp"></div><div id="sR" class="sp"></div>
+    <div id="shint"></div>
+    <div id="smsg" class="msgbox"><div id="snm" class="nm">　</div><div id="sbox" class="box"><span id="stt"></span><span id="scue" class="cue">▼</span></div></div>
+    <div id="schoice"></div>
+    <div id="scut"><div class="band"><span>変ですね</span></div></div>
+  </div>
+
+  <!-- 結果 -->
+  <div id="result" class="layer">
+    <div class="p"><h2>事件解決！</h2><div class="st">⭐⭐⭐</div>
+      <p id="rtext"></p></div>
+    <div class="start"><button class="btn" onclick="location.reload()">▶ もう一度</button></div>
+  </div>
+
+  <div id="flash"></div>
+  <div id="fade"></div>
+  <audio id="bgm" src="assets/audio/theme.mp3" loop preload="auto"></audio>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+/* ===================== テーマソング（タイトル〜町歩き。事件発生でフェードアウト） ===================== */
+let bgmFadeTimer=null, bgmStopTimer=null, bgmGain=null, bgmWired=false;
+function wireBgm(){ // BGMをWeb Audio経由にすると、iPhoneでも本物の音量フェードができる
+  if(bgmWired) return;
+  try{
+    seCtx = seCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const src=seCtx.createMediaElementSource($('bgm'));
+    bgmGain=seCtx.createGain(); src.connect(bgmGain); bgmGain.connect(seCtx.destination);
+    bgmWired=true;
+  }catch(e){}
+}
+function startBgm(){ const a=$('bgm'); if(!a) return; clearInterval(bgmFadeTimer); clearTimeout(bgmStopTimer);
+  wireBgm();
+  if(bgmWired && seCtx){ if(seCtx.state==='suspended') seCtx.resume(); bgmGain.gain.cancelScheduledValues(seCtx.currentTime); bgmGain.gain.setValueAtTime(0.85, seCtx.currentTime); }
+  else { try{ a.volume=0.85; }catch(e){} }
+  a.currentTime=0; a.play().catch(()=>{}); }
+/* 場面ごとのBGM（クロスフェード切替） */
+const BGM_FILES={ title:'opening', town:'sunset_road', prologue:'sunset_road', incident:'villains',
+  search:'suspicious', reasoning:'reasoning', solve:'solve_scene', result:'epilogue_smile' };
+let curBgm='';
+function playBgm(name, vol=0.8, fadeMs=800){
+  const a=$('bgm'); if(!a||!BGM_FILES[name]) return;
+  if(curBgm===name && !a.paused) return;
+  curBgm=name;
+  clearInterval(bgmFadeTimer); clearTimeout(bgmStopTimer);
+  wireBgm();
+  const doPlay=()=>{
+    a.src='assets/audio/'+BGM_FILES[name]+'.mp3'; a.currentTime=0;
+    if(bgmWired && seCtx){ if(seCtx.state==='suspended') seCtx.resume();
+      const t=seCtx.currentTime; bgmGain.gain.cancelScheduledValues(t);
+      bgmGain.gain.setValueAtTime(0.0001, t); bgmGain.gain.linearRampToValueAtTime(vol, t+fadeMs/1000);
+    } else { try{ a.volume=vol; }catch(e){} }
+    a.play().catch(()=>{});
+  };
+  if(!a.paused){ fadeOutBgm(350); clearTimeout(bgmStopTimer); setTimeout(doPlay, 400); } else doPlay();
+}
+function stopBgm(ms=900){ curBgm=''; fadeOutBgm(ms); }
+/* 手がかり発見の効果音 */
+function playClueSE(){ try{ const s=new Audio('assets/audio/se_clue.mp3'); s.volume=0.7; s.play().catch(()=>{}); }catch(e){} }
+
+function fadeOutBgm(ms=900){ const a=$('bgm'); if(!a||a.paused) return; clearInterval(bgmFadeTimer); clearTimeout(bgmStopTimer);
+  if(bgmWired && seCtx){
+    const t=seCtx.currentTime;
+    bgmGain.gain.cancelScheduledValues(t);
+    bgmGain.gain.setValueAtTime(bgmGain.gain.value||0.85, t);
+    bgmGain.gain.linearRampToValueAtTime(0.0001, t+ms/1000);
+  } else {
+    const step=(a.volume||0.85)/(ms/60);
+    bgmFadeTimer=setInterval(()=>{ try{ a.volume=Math.max(0,a.volume-step); }catch(e){} },60);
+  }
+  // フェード後に確実に停止（どの端末でも）
+  bgmStopTimer=setTimeout(()=>{ clearInterval(bgmFadeTimer); a.pause(); try{a.volume=0.85;}catch(e){} }, ms+120); }
+
+/* ===================== タップ音（システムSE・合成音なのでファイル不要） ===================== */
+let seCtx=null;
+function playTapSE(){
+  try{
+    seCtx = seCtx || new (window.AudioContext||window.webkitAudioContext)();
+    if(seCtx.state==='suspended') seCtx.resume();
+    const t=seCtx.currentTime, o=seCtx.createOscillator(), g=seCtx.createGain();
+    o.type='triangle';
+    o.frequency.setValueAtTime(660, t);
+    o.frequency.exponentialRampToValueAtTime(920, t+0.04);
+    g.gain.setValueAtTime(0.10, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t+0.09);
+    o.connect(g); g.connect(seCtx.destination);
+    o.start(t); o.stop(t+0.1);
+  }catch(e){}
+}
+document.addEventListener('pointerdown', (e)=>{ if(!e.target.closest('#phone')) return; playTapSE();
+  if(prologueLive && !pDraining && curBgm!=='prologue') playBgm('prologue', 0.6); // 最初のタップで思い出の曲が流れ出す
+});
+function layer(id){ document.querySelectorAll('.layer').forEach(l=>l.classList.remove('on')); $(id).classList.add('on'); }
+function fadeTo(cb){ const f=$('fade'); f.style.opacity=1; setTimeout(()=>{ cb&&cb(); setTimeout(()=>f.style.opacity=0,60); },480); }
+function flash(){ const e=$('flash'); e.style.transition='none'; e.style.opacity=.9; setTimeout(()=>{ e.style.transition='opacity .5s'; e.style.opacity=0; },40); }
+
+/* ===================== 探索（商店街） ===================== */
+const WORLDW=1700;
+const screenW=()=>$('phone').clientWidth;
+const SHOPS=[
+  {x:230, n:"パンのいえ", img:"bakery.png"},
+  {x:470, n:"ほん屋", img:"book.png"},
+  {x:760, n:"星野文具店", img:"stationery.png"},
+  {x:1040,n:"からあげ繁盛店", img:"karaage.png"},
+  {x:1360,n:"花屋", img:"flower.png"},
+];
+const POI=[
+  {x:230, type:"shop", lines:[{c:"npc",n:"パン屋のおばちゃん",t:"おかえり、青太くん。あんパンどう？"},{c:"aota",f:"ehehe",t:"わ、ありがとうございます。あとで寄りますね"}]},
+  {x:470, type:"shop", lines:[{c:"npc",n:"本屋の店主",t:"推理小説、入ったよ。立ち読みはほどほどにね"},{c:"aota",t:"……読むと、なんだか落ち着くんです"}]},
+  {x:760, type:"shop", trigger:true, lines:[{c:"npc",n:"星野のおばあちゃん",t:"あらあら、青太くん。ノートかい？　そこの棚に――"}]},
+  {x:1040,type:"shop", lines:[{c:"aota",f:"nihera",t:"……ここだ。においの、震源地。三軒に一軒の、発生源"},{c:"aota",f:"shinken",t:"（ごくり）……いや。今は、ノート。ノートが、先"}]},
+  {x:600, type:"npc", img:"ojiisan.png", lines:[{c:"npc",n:"おじいさん",t:"ふぉっふぉ。いい夕焼けじゃのう"}]},
+  {x:900, type:"npc", img:"boy.png", h:80, lines:[{c:"npc",n:"男の子",t:"おにいちゃん、たんてい？　かっこいい！"},{c:"aota",f:"ehehe",t:"えへへ。まだ見習い、だけどね"}]},
+  {x:1200,type:"npc", face:"🙂", akane:true, lines:[{c:"akane",f:"jito",t:"あ、明智くん。お買い物？　……また、からあげのほう見てた？"},{c:"aota",f:"odoroki",t:"み、見てない。においが、つよいだけ"},{c:"akane",f:"ikari",t:"目が泳いでるんだけど！？"},{c:"aota",f:"nihera",t:"……においって、罪だよね"},{c:"akane",f:"jito",t:"（……この子、ほんとにからあげのことしか考えてない）"}]},
+];
+const far=$('far'), world=$('world');
+world.style.width=WORLDW+'px'; far.style.width=(WORLDW*0.7)+'px';
+// 遠景はCSS背景（assets/town/roofs.png）で描画するため、旧roofブロック生成は廃止
+SHOPS.forEach(s=>{ const el=document.createElement('div'); el.className='shop'; el.style.left=(s.x-95)+'px';
+  el.innerHTML='<img class="bld" src="assets/town/'+s.img+'" alt=""><div class="sg">'+s.n+'</div>';
+  el.onclick=(e)=>{ e.stopPropagation(); const p=POI.find(p=>Math.abs(p.x-s.x)<8&&p.type==='shop'); if(p)goAndTalk(p); };
+  world.insertBefore(el,$('runner')); });
+POI.forEach(p=>{
+  if(p.type==='npc'){ const el=document.createElement('div'); el.className='npc'; el.style.left=(p.x-32)+'px';
+    const spr=p.akane?'assets/akane/idle_front.png':(p.img?'assets/npc/'+p.img:null);
+    if(spr){
+      const size=p.h||100;
+      el.innerHTML='<div class="bub">'+(p.akane?'♪':'…')+'</div><img class="spr" style="width:'+size+'px;height:'+size+'px" src="'+spr+'" alt="">';
+    } else {
+      el.innerHTML='<div class="bub">…</div><div class="ch" style="background:linear-gradient(160deg,#d8d2c4,#aaa498)">'+p.face+'</div>';
+    }
+    el.onclick=(e)=>{ e.stopPropagation(); goAndTalk(p); }; world.insertBefore(el,$('runner')); }
+  const g=document.createElement('div'); g.className='glow'; g.style.left=(p.x-14)+'px'; world.insertBefore(g,$('runner'));
+});
+
+let posX=120,targetX=120,facing=1,walking=false,pending=null,etalking=false,exploreLive=false,caseDone=false;
+const aota=$('aota'),marker=$('marker');
+// 青太スプライト（歩行7コマ＋立ち）。先読みしてカクつき防止
+const aotaSpr=$('aotaSpr');
+const WALK_FRAME_COUNT=7, WALK_FRAME_MS=90;
+const walkSrcs=Array.from({length:WALK_FRAME_COUNT},(_,i)=>'assets/aota/walk_'+i+'.png?v=513'); // ?v=はキャッシュ対策（変えると再取得される）
+const idleSrc='assets/aota/idle_0.png?v=2'; // 歩きと同じVeo質感の立ち姿（v2: 半目→ぱっちり青い目に修正）
+[...walkSrcs, idleSrc].forEach(src=>{ const im=new Image(); im.src=src; });
+let walkT=0, curSpr=idleSrc;
+function setSprite(src){ if(curSpr!==src){ curSpr=src;
+  // 動画由来のコマはなめらか縮小、くっきり生成絵（プロローグの少年）はドット描画
+  aotaSpr.style.imageRendering=(src===boySrc)?'pixelated':'auto';
+  aotaSpr.src=src; } }
+let last=null;
+function loop(ts){ if(last==null)last=ts; const dt=Math.min(48,ts-last); last=ts;
+  if(exploreLive && walking && !etalking){ const diff=targetX-posX,dir=Math.sign(diff),step=0.42*dt;
+    if(Math.abs(diff)<=step){ posX=targetX; walking=false; if(pending){const p=pending;pending=null;talkE(p);} }
+    else { posX+=dir*step; facing=dir; } }
+  if(prologueLive && exploreLive && Math.abs(pgirlX-posX)<95){ walking=false; targetX=posX; girlStep(); }
+  if(exploreLive && walking && !etalking){ walkT+=dt; setSprite(prologueLive?boySrc:walkSrcs[Math.floor(walkT/WALK_FRAME_MS)%WALK_FRAME_COUNT]); }
+  else { walkT=0; setSprite(prologueLive?boySrc:idleSrc); }
+  const pbob=(prologueLive&&walking&&!etalking)?' translateY('+(Math.sin(ts/80)*3).toFixed(1)+'px)':'';
+  aota.style.left=posX+'px'; aota.style.transform='scaleX('+(facing<0?-1:1)+')'+pbob;
+  const cam=Math.max(0,Math.min(WORLDW-screenW(),posX-screenW()/2));
+  world.style.transform='translateX('+(-cam)+'px)'; far.style.transform='translateX('+(-cam*0.4)+'px)';
+  if(exploreLive && !etalking){ const near=POI.find(p=>Math.abs(p.x-posX)<70);
+    if(near&&!walking){ $('ph').textContent='▲ 話しかけられる'; $('ph').classList.add('show'); } else $('ph').classList.remove('show'); }
+  requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+
+// よこスワイプ（フリック）でも歩けるように
+let swipeX0=null, swipeT0=0, swipedAt=0;
+$('worldwrap').addEventListener('pointerdown',(e)=>{ swipeX0=e.clientX; swipeT0=performance.now(); });
+$('worldwrap').addEventListener('pointerup',(e)=>{ if(swipeX0==null)return; const dx=e.clientX-swipeX0; swipeX0=null;
+  if(Math.abs(dx)>45 && performance.now()-swipeT0<600){ if(!exploreLive||etalking)return;
+    swipedAt=Date.now();
+    targetX=Math.max(60,Math.min(WORLDW-60,posX+Math.sign(dx)*280)); walking=true; pending=null;
+    marker.style.left=targetX+'px'; marker.classList.remove('show'); void marker.offsetWidth; marker.classList.add('show'); } });
+$('worldwrap').addEventListener('click',(e)=>{ if(!exploreLive||etalking)return;
+  if(Date.now()-swipedAt<400)return; // 直前がスワイプならタップ扱いしない
+  const cam=Math.max(0,Math.min(WORLDW-screenW(),posX-screenW()/2));
+  let wx=e.clientX-$('phone').getBoundingClientRect().left+cam; targetX=Math.max(60,Math.min(WORLDW-60,wx)); walking=true; pending=null;
+  marker.style.left=targetX+'px'; marker.classList.remove('show'); void marker.offsetWidth; marker.classList.add('show'); });
+function goAndTalk(p){ if(!exploreLive||etalking)return;
+  if(prologueLive){ targetX=Math.max(60,Math.min(WORLDW-60,p.x)); walking=true; pending=null; return; }
+  const front=p.x+(p.x>posX?-64:64);
+  targetX=Math.max(60,Math.min(WORLDW-60,front)); walking=true; pending=p; facing=p.x>posX?1:-1;
+  marker.style.left=p.x+'px'; marker.classList.remove('show'); void marker.offsetWidth; marker.classList.add('show');
+  if(Math.abs(targetX-posX)<8){ walking=false; pending=null; talkE(p); } }
+
+// 探索の会話（通常／イベント共用の1ハンドラに統一）
+let eMode='normal';
+let edl=[],edi=0,etyping=false,etT=null,ecur=null;
+let odl=[],oi=0,odone=null;
+/* ===================== 会話立ち絵（表情つきバストアップ） ===================== */
+const BUST={
+  aota:{ base:'aota_base', boke:'aota_boke', nihera:'aota_nihera', doya:'aota_doya',
+         odoroki:'aota_odoroki', shinken:'aota_shinken', ehehe:'aota_ehehe' },
+  akane:{ base:'akane_base', tere:'akane_tere', jito:'akane_jito',
+          odoroki:'akane_odoroki', ikari:'akane_ikari' },
+};
+Object.values(BUST).forEach(m=>Object.values(m).forEach(n=>{ const im=new Image(); im.src='assets/busts/'+n+'.png'; }));
+const BUST_SIDE={ aota:'bustL', akane:'bustR' };
+function showBusts(ln){
+  if(prologueLive){ hideBusts(); return; } // プロローグは子ども時代なので立ち絵を出さない
+  let any=false;
+  ['aota','akane'].forEach(ch=>{
+    const img=$(BUST_SIDE[ch]);
+    if(ch===ln.c){
+      const face=(ln.f && BUST[ch][ln.f]) ? ln.f : 'base';
+      const src='assets/busts/'+BUST[ch][face]+'.png';
+      if(!img.src.endsWith(src)) img.src=src;
+      img.classList.add('on'); img.classList.remove('dim'); any=true;
+    } else if(img.classList.contains('on')){
+      img.classList.add('dim'); any=true; // 話していない側は暗く
+    }
+  });
+  $('busts').classList.toggle('show', any);
+}
+function hideBusts(){ $('busts').classList.remove('show');
+  ['bustL','bustR'].forEach(id=>{ $(id).classList.remove('on'); $(id).classList.remove('dim'); }); }
+
+function renderE(ln){ const nm=$('enm'); nm.className='nm';
+  if(ln.c==='aota'){nm.classList.add('aota');nm.textContent='明智 青太';}
+  else if(ln.c==='akane'){nm.classList.add('akane');nm.textContent='栗栖 紅音';}
+  else nm.textContent=ln.n||'';
+  nm.style.display=(ln.c==='mono')?'none':'inline-block'; $('ebox').classList.toggle('mono',ln.c==='mono');
+  showBusts(ln); typeE(ln.t); }
+function typeE(t){ const s=$('ett'),c=$('ecue'); c.style.display='none'; etyping=true; s.textContent=''; let i=0; clearInterval(etT);
+  etT=setInterval(()=>{ s.textContent=t.slice(0,++i); if(i>=t.length){clearInterval(etT);etyping=false;c.style.display='block';} },18); }
+function talkE(p){ eMode='normal'; etalking=true; ecur=p; edl=p.lines; edi=0; $('etalk').classList.add('show'); showE(); }
+function showE(){ if(edi>=edl.length){ closeE(); return; } renderE(edl[edi]); }
+function closeE(){ $('etalk').classList.remove('show'); etalking=false; hideBusts();
+  if(ecur&&ecur.trigger&&!caseDone){ ecur=null; exploreLive=false; setTimeout(startCaseEvent,350); } else ecur=null; }
+function talkOverlayE(lines, done){ eMode='overlay'; odl=lines; oi=0; odone=done; etalking=true; $('etalk').classList.add('show'); overlayStep(); }
+function overlayStep(){ if(oi>=odl.length){ $('etalk').classList.remove('show'); eMode='normal'; hideBusts(); const d=odone; odone=null; d&&d(); return; } renderE(odl[oi]); oi++; }
+$('etalk').addEventListener('click',()=>{
+  if(eMode==='overlay'){
+    if(etyping){ clearInterval(etT); etyping=false; $('ett').textContent=odl[oi-1].t; $('ecue').style.display='block'; return; }
+    overlayStep();
+  } else {
+    if(etyping){ clearInterval(etT); etyping=false; $('ett').textContent=edl[edi].t; $('ecue').style.display='block'; return; }
+    edi++; showE();
+  }
+});
+
+function toExplore(first){ layer('explore'); exploreLive=true; if(first){ posX=120; targetX=120; }
+  if(first){ setTimeout(()=>{ talkE({lines:[{c:"aota",t:"（転校してきて、まだ三日。……この町、なんだか、初めてな気がしない）"},{c:"aota",t:"まずは、ノートを買いに、星野文具店へ行こう"}]}); },400); } }
+
+/* ===================== プロローグ「なくした色」 ===================== */
+let prologueLive=false, pCatch=0, pgirlX=0, pDraining=false;
+const boySrc='assets/prologue/boy.png';
+[boySrc,'assets/prologue/girl.png'].forEach(src=>{ const im=new Image(); im.src=src; });
+function startPrologue(){
+  document.body.classList.add('prologue');
+  prologueLive=true; pCatch=0; pDraining=false;
+  layer('explore'); exploreLive=true;
+  posX=120; targetX=120; facing=1;
+  pgirlX=310; $('pgirl').style.left=pgirlX+'px'; // 画面幅が狭い端末でも、吹き出しごと最初から見える位置
+  setSprite(boySrc);
+  $('phint').classList.add('show');
+  $('pskip').onclick=(e)=>{ e.stopPropagation(); endPrologue(); };
+}
+function girlStep(){
+  pCatch++;
+  $('phint').classList.remove('show'); // 一度追いつけたら誘導は消す
+  if(pCatch>=3){ startColorDrain(); return; }
+  pgirlX=Math.min(WORLDW-240, pgirlX+280);
+  $('pgirl').style.left=pgirlX+'px';
+}
+function startColorDrain(){
+  if(pDraining) return; pDraining=true; exploreLive=false; walking=false;
+  document.body.classList.add('drain'); // 世界の色が、すうっと抜ける
+  stopBgm(1800); // 色と一緒に、音も消えていく
+  const r=$('runner');
+  r.classList.add('stand'); // プロローグの影は「走らない。ただ、立っている」
+  r.style.transition='opacity 2s'; r.style.left=(Math.min(WORLDW-140,posX+165))+'px'; r.style.opacity=1;
+  setTimeout(()=>{
+    talkOverlayE([{c:'npc',n:'女の子',t:'……くん！'}], ()=>endPrologue());
+  }, 2700);
+}
+function endPrologue(){
+  if(!prologueLive) return; prologueLive=false;
+  fadeTo(()=>{
+    document.body.classList.remove('prologue'); document.body.classList.remove('drain');
+    const r=$('runner'); r.style.opacity=0; r.style.transition=''; r.classList.remove('stand');
+    setSprite(idleSrc);
+    exploreLive=false; walking=false;
+    layer('title');
+    playBgm('title'); // プロローグ中のタップで操作済みなので自動再生できる
+  });
+}
+
+/* ===================== 変身カットイン（日常→集中モード） ===================== */
+// ※ SEを入れるならここ：バンド入り＝ヒュッ、白フラッシュ＝キラーン、着地＝ドン
+function playSwitchCutin(done){
+  const c=$('cutin'), img=$('cutinImg'), wf=$('cutinFlash');
+  img.style.transition='none'; img.style.transform='translate(-50%,-52%)';
+  img.src='assets/aota/idle_front.png';
+  c.classList.add('on');
+  setTimeout(()=>{
+    wf.style.transition='none'; wf.style.opacity=1;              // 白フラッシュ
+    setTimeout(()=>{
+      img.src='assets/aota/focus_front.png';                     // ここで変身
+      img.style.transform='translate(-50%,-52%) scale(1.3)';
+      void img.offsetWidth;
+      wf.style.transition='opacity .2s'; wf.style.opacity=0;
+      img.style.transition='transform .24s cubic-bezier(.2,1.6,.4,1)';
+      img.style.transform='translate(-50%,-52%) scale(1)';       // ドンと着地
+    }, 100);
+  }, 650);
+  setTimeout(()=>{ c.classList.remove('on'); done&&done(); }, 2100);
+}
+
+/* ===================== 事件イベント（探索→事件） ===================== */
+function startCaseEvent(){
+  exploreLive=false; walking=false;
+  playBgm('incident', 0.8); // 平和な曲が途切れ、不穏な曲へ
+  // 暗くなる → 悲鳴 → 黒い影が走り去る
+  $('dark').style.background='rgba(10,8,16,.45)';
+  setTimeout(()=>{
+    flash();
+    talkOverlayE([{c:"npc",n:"？？？",t:"きゃあああっ！！"}], ()=>{
+      // 影が右から左へ走る
+      const r=$('runner'); const startX=posX+screenW()/2+120, endX=posX-screenW()/2-160;
+      r.style.left=startX+'px'; r.style.opacity=1; r.style.transition='none';
+      void r.offsetWidth; r.style.transition='left 0.85s linear, opacity .3s';
+      r.style.left=endX+'px';
+      setTimeout(()=>{ r.style.opacity=0;
+        talkOverlayE([
+          {c:"aota",f:"odoroki",t:"――今の、影……！"},
+          {c:"aota",f:"shinken",t:"（胸が、ざわざわする。……追わなきゃ。でも、まず、現場だ）"},
+          {c:"npc",n:"星野のおばあちゃん",t:"お、お金が……レジのお金が、さっきまで、あったのに……！"},
+        ], ()=>{ fadeTo(()=>{ $('dark').style.background='rgba(10,8,16,0)'; playSwitchCutin(()=>startSearch()); }); });
+      }, 900);
+    });
+  }, 500);
+}
+// （talkOverlayE は上の共用ハンドラ側に統合済み）
+
+/* ===================== 事件モード（探す→突きつけ→解決） ===================== */
+const CH={ aota:{n:"明智 青太",cls:"aota",f:"🙂",c:"linear-gradient(160deg,#5b9be0,#34608f)",img:"assets/aota/focus_front.png"},
+  aotaS:{n:"明智 青太",cls:"aota",f:"😐",c:"linear-gradient(160deg,#3a6ea8,#23405f)",img:"assets/aota/focus_front.png"},
+  baa:{n:"星野のおばあちゃん",cls:"",f:"👵",c:"linear-gradient(160deg,#c8ad84,#9c8462)",img:"assets/npc/grandma.png"},
+  oku:{n:"近所の奥さん",cls:"",f:"🧑",c:"linear-gradient(160deg,#a895b5,#7d6c8c)",img:"assets/npc/wife.png"},
+  tado:{n:"田所くん",cls:"",f:"📖",c:"linear-gradient(160deg,#8ca8c4,#5d7a96)",img:"assets/npc/tadokoro.png"},
+  taku:{n:"宅配のお兄さん",cls:"",f:"📦",c:"linear-gradient(160deg,#6ab0a8,#417d76)",img:"assets/npc/takuhai.png"}, nar:{n:"",cls:"",f:"",c:""} };
+const HOTS=[
+  {x:44,y:30, clue:false, line:{c:"aota",t:"鉛筆、ぽきっと折れてる。……あ、これは僕。さっき肘で"}},
+  {x:72,y:52, clue:true, name:"お札だけ無い", line:{c:"aota",t:"お札だけ無くなってる。小銭は残ってる。……高いハムだけ食べてく試食客みたいな、迷いのなさ"}},
+  {x:22,y:60, clue:true, name:"裏庭の泥の足あと", line:{c:"baa",t:"裏庭、今朝水やりしたから、そこだけ、ぬかるんでてねえ"}},
+  {x:18,y:36, clue:true, name:"鍵＝常連だけ", line:{c:"baa",t:"裏口の鍵のありかを知ってるのは、よく来る常連さんくらいで"}},
+];
+const NEED=3; let clues=[];
+const PRE=[ {c:"aotaS",t:"……奥さん。あらためて、聞きます。事件のとき、あなたは、どこにいました？"},
+  {c:"oku",t:"ずーっと、正面のレジの前よ。一歩も、動いてないわ"},
+  {c:"nar",t:"― 一拍。沈黙。"}, {c:"aotaS",t:"正面のレジの前に、ずっと。一歩も、動かずに……？"} ];
+const OPTS=[ {name:"お札だけ無い",ok:false,miss:{c:"aota",t:"それは“犯人が急いでた”証拠。でも、この人が嘘をついてる証明にはならないかな"}},
+  {name:"裏庭の泥の足あと＋奥さんの靴",ok:true},
+  {name:"鍵＝常連だけ",ok:false,miss:{c:"aota",t:"惜しい。常連は何人かいる。これだけじゃ、奥さん一人に、しぼれない"}} ];
+const POST=[ {c:"aotaS",t:"犯人は裏口から逃げた。裏庭は今朝の水やりでぬかるんでた。だから犯人の靴の裏には、裏庭の土がつく"},
+  {c:"aotaS",t:"正面にずっといたはずのあなたの靴の裏に。……どうして、裏庭の土が？"},
+  {c:"oku",t:"……っ。ご、ごめんなさい。知らない男の人に、頼まれたの。レジの奥の、古い写真を持ってこいって……"},
+  {c:"aota",t:"……写真？"},
+  {c:"baa",t:"あの写真を、どうして今ごろ……。昔ね、ある人から預かったの。『いつか必ず取りに来る』と。でも、もうずっと会ってないのに"},
+  {c:"aota",t:"（あの黒い影。……胸の奥が、ざわざわする。まるで、思い出せない場所を、誰かがノックしてるみたいに）"} ];
+
+function setSp(side,key){ const el=side==='L'?$('sL'):$('sR'); if(!key){el.classList.remove('show');return;}
+  const ch=CH[key];
+  if(ch.img){ el.style.background='none'; el.innerHTML='<img src="'+ch.img+'" alt="">'; }
+  else { el.style.background=ch.c; el.innerHTML=''; el.textContent=ch.f; }
+  el.classList.add('show'); }
+function sName(key){ const ch=CH[key]||CH.nar; const nm=$('snm'); nm.className='nm'; if(ch.cls)nm.classList.add(ch.cls);
+  nm.textContent=ch.n||'　'; nm.style.visibility=ch.n?'visible':'hidden'; }
+function sType(t,mono){ const s=$('stt'),c=$('scue'); c.style.display='none'; sTyping=true; sFullText=t; s.textContent=''; let i=0; clearInterval(sT);
+  $('sbox').classList.toggle('mono',!!mono); sT=setInterval(()=>{ s.textContent=t.slice(0,++i); if(i>=t.length){clearInterval(sT);sTyping=false;c.style.display='block';} },18); }
+let sTyping=false,sT=null,sFullText='';
+
+function startSearch(){
+  playBgm('search');
+  layer('scene'); $('sstage').style.background='url(assets/town/interior.png) center/cover no-repeat';
+  $('sclue').innerHTML=''; clues=[]; $('schoice').style.display='none'; setSp('L',null); setSp('R',null);
+  $('shint').textContent='現場：星野文具店（光る所をタップ）';
+  $('smsg').classList.add('show'); sName('aota'); setSp('L','aota'); sType('足あとが乾かないうちに。光ってる所を調べよう');
+  document.querySelectorAll('.hot').forEach(e=>e.remove());
+  HOTS.forEach(h=>{ const el=document.createElement('div'); el.className='hot'; el.style.left=h.x+'%'; el.style.top=h.y+'%';
+    el.innerHTML='<div class="g"></div>'; el.onclick=()=>invest(h,el); $('scene').insertBefore(el,$('shint')); });
+}
+function invest(h,el){ const ch=CH[h.line.c]; sName(h.line.c);
+  if(h.line.c==='aota')setSp('L','aota'); else if(h.line.c==='baa')setSp('L','baa');
+  sType(h.line.t); if(!el.classList.contains('done')){ el.classList.add('done'); if(h.clue)addClue(h.name); }
+  progress(); }
+function addClue(n){ if(clues.includes(n))return; clues.push(n); playClueSE(); const c=document.createElement('div'); c.className='cl'; c.textContent='🔍 '+n; $('sclue').appendChild(c); }
+function progress(){ if(clues.length>=NEED){ $('shint').textContent='手がかりが揃った！';
+    const box=$('schoice'); box.style.display='block'; box.innerHTML='<button class="btn" onclick="startInterview()">▶ 三人に、話を聞く</button>'; } }
+
+/* ===================== 聞き込み → 犯人指名 ===================== */
+const SUS={
+  tado:{ key:'tado', img:'assets/npc/tadokoro.png',
+    lines:[
+      {c:'tado',t:'ぼ、ぼくはずっと、そこの本棚で立ち読みしてたよ。新刊の、推理小説……'},
+      {c:'aota',t:'（靴は、きれいだ。……でも田所くんは常連。裏口の鍵のありかを、知ってる側の人）'} ],
+    note:'👞 靴きれい ／ 🔑 鍵のありかを知ってる（常連）' },
+  taku:{ key:'taku', img:'assets/npc/takuhai.png',
+    lines:[
+      {c:'taku',t:'荷物を届けたあとは、ずっと表で伝票の整理してました。自分、この店に来たの今日が初めてで'},
+      {c:'aota',t:'（靴は、きれい。それに初めての店なら、裏口の鍵のありかは、知りようがない）'} ],
+    note:'👞 靴きれい ／ 🔑 鍵を知らない（初めての店）' },
+  oku:{ key:'oku', img:'assets/npc/wife.png',
+    lines:[
+      {c:'oku',t:'ずーっと、そこの正面のレジの前よ。一歩も、動いてないわ'},
+      {c:'aota',t:'（正面に、ずっと……？　でも、この人の靴の底には、湿った土がついていた）'} ],
+    note:'👞 靴に湿った土 ／ 🔑 鍵のありかを知ってる（常連）' },
+};
+let heard={}, iq=[], iqCb=null;
+function playLines(lines, cb){ iq=lines.slice(); iqCb=cb; iStep(); }
+function iStep(){
+  if(!iq.length){ const cb=iqCb; iqCb=null; if(cb)cb(); return; }
+  const ln=iq.shift(); sName(ln.c);
+  if(ln.c==='aota'||ln.c==='aotaS') setSp('L', ln.c); else if(CH[ln.c]) setSp('R', ln.c);
+  sType(ln.t, ln.c==='nar');
+}
+function interviewActive(){ return iq.length>0 || iqCb!==null; }
+function startInterview(){
+  playBgm('reasoning');
+  document.querySelectorAll('.hot').forEach(e=>e.remove()); $('sclue').innerHTML='';
+  heard={}; setSp('L',null); setSp('R',null); sName(); $('stt').textContent='';
+  $('shint').textContent='事件のとき、店にいた三人。全員に話を聞こう';
+  renderSuspects('interview');
+}
+function renderSuspects(mode){
+  const box=$('schoice'); box.style.display='block'; box.innerHTML='';
+  ['tado','taku','oku'].forEach(k=>{
+    const s=SUS[k], ch=CH[k];
+    const b=document.createElement('button'); b.className='btn suspect'+(heard[k]?' heard':'');
+    b.innerHTML='<img src="'+s.img+'" alt=""><span class="scol"><span class="sn">'+ch.n+'</span><span class="sd">'
+      +(heard[k]?s.note:(mode==='interview'?'タップして話を聞く':'……'))+'</span></span>';
+    b.onclick=()=>{ if(mode==='interview') hearSuspect(k); else accuse(k); };
+    box.appendChild(b);
+  });
+  if(mode==='interview' && heard.tado && heard.taku && heard.oku){
+    const done=document.createElement('button'); done.className='btn';
+    done.textContent='🔍 犯人を、指名する';
+    done.onclick=()=>startAccuse(); box.appendChild(done);
+  }
+}
+function hearSuspect(k){
+  $('schoice').style.display='none';
+  playLines(SUS[k].lines, ()=>{ heard[k]=true; setSp('R',null); sName(); $('stt').textContent=''; $('scue').style.display='none'; renderSuspects('interview'); });
+}
+function startAccuse(){
+  $('shint').textContent='犯人は――この中に、いる。';
+  renderSuspects('accuse');
+}
+function accuse(k){
+  $('schoice').style.display='none';
+  if(k==='oku'){
+    playLines([{c:'aotaS',t:'……決まりです。犯人は――あなただ。奥さん'}], ()=>startDeduction());
+  } else {
+    const miss = k==='tado'
+      ? '……いや、違う。田所くんの靴は、きれいだった。今朝ぬかるんだ裏庭を通った犯人の靴じゃ、ない'
+      : '……違うな。宅配のお兄さんは、この店が今日初めて。裏口の鍵のありかを、知りようがない';
+    playLines([{c:'aota',t:miss}], ()=>{ $('stt').textContent=''; $('scue').style.display='none'; renderSuspects('accuse'); });
+  }
+}
+
+let di2=0;
+function startDeduction(){ document.querySelectorAll('.hot').forEach(e=>e.remove()); $('sclue').innerHTML=''; $('schoice').style.display='none';
+  $('sstage').style.background='linear-gradient(160deg,#5a4a52,#2e2530)'; $('shint').textContent=''; di2=0; dStep(); }
+function dStep(){ if(di2<PRE.length){ const ln=PRE[di2]; sName(ln.c);
+    if(ln.c==='aotaS')setSp('L','aotaS'); else if(ln.c==='oku')setSp('R','oku'); sType(ln.t,ln.c==='nar'); di2++;
+    if(di2===PRE.length) setTimeout(showOpts,300); } }
+$('smsg').addEventListener('click',()=>{ if(!$('scene').classList.contains('on'))return;
+  if(interviewActive()){ if(sTyping){clearInterval(sT);sTyping=false;$('stt').textContent=sFullText;$('scue').style.display='block';return;} iStep(); return; }
+  if(duringPre()){ if(sTyping){clearInterval(sT);sTyping=false;$('stt').textContent=PRE[di2-1].t;$('scue').style.display='block';return;} dStep(); } });
+function duringPre(){ return di2>0 && di2<PRE.length; }
+function showOpts(){ $('shint').textContent=''; sName(); $('snm').style.visibility='hidden'; $('sbox').classList.remove('mono');
+  $('stt').textContent='💡 奥さんの証言の「ムジュン」を突く。どの手がかりを？'; $('scue').style.display='none';
+  const box=$('schoice'); box.style.display='block'; box.innerHTML='';
+  OPTS.forEach(o=>{ const b=document.createElement('button'); b.className='btn clue'; b.textContent='🔍 '+o.name;
+    b.onclick=()=>{ if(o.ok){ box.style.display='none'; cutin(()=>playPost()); } else { sName(o.miss.c); setSp('L','aota'); sType(o.miss.t); } };
+    box.appendChild(b); }); }
+function cutin(cb){ const c=$('scut'); c.classList.add('show');
+  for(let k=0;k<10;k++){ const s=document.createElement('div'); s.className='sparkle'; s.textContent='✦'; s.style.left=(10+Math.random()*80)+'%'; s.style.top=(30+Math.random()*40)+'%'; s.style.color=k%2?'#ffd97a':'#fff'; $('phone').appendChild(s); setTimeout(()=>s.remove(),1600); }
+  setTimeout(()=>{ c.classList.remove('show'); cb&&cb(); },1100); }
+let pi=0;
+function playPost(){ playBgm('solve'); pi=0; postStep();
+  $('smsg').onclick=()=>{ if(sTyping){clearInterval(sT);sTyping=false;$('stt').textContent=POST[pi-1].t;$('scue').style.display='block';return;} postStep(); }; }
+function postStep(){ if(pi>=POST.length){ setTimeout(goResult,400); return; } const ln=POST[pi]; sName(ln.c);
+  if(ln.c==='aotaS'||ln.c==='aota')setSp('L',ln.c==='aotaS'?'aotaS':'aota'); else if(ln.c==='oku')setSp('R','oku'); else if(ln.c==='baa')setSp('L','baa');
+  sType(ln.t, ln.c==='nar'); pi++; }
+
+function goResult(){ caseDone=true; playBgm('result'); layer('result');
+  $('rtext').innerHTML="星野文具店・盗難事件、解決。<br>でも――狙われた“古い写真”の謎。<br>静かな声の、黒い影。<br><br>青太の失くした記憶と、<br>何かがつながっている……？<br><br><b>つづく</b>";
+  for(let k=0;k<16;k++){ const s=document.createElement('div'); s.className='sparkle'; s.textContent=k%3?'✦':'⭐'; s.style.left=(Math.random()*90)+'%'; s.style.top=(38+Math.random()*30)+'%'; s.style.color=['#ffd97a','#fff','#9bd0ff'][k%3]; s.style.animationDelay=(Math.random()*.6)+'s'; $('phone').appendChild(s); setTimeout(()=>s.remove(),2200); } }
+
+// 起動フロー：プロローグ「なくした色」→ タイトル → 第一話
+startPrologue();
+</script>
+</body>
+</html>

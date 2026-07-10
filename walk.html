@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>橙ヶ丘・商店街さんぽ（歩きプロトタイプ）</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html,body { height:100%; background:#111418; font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif; overflow:hidden; }
+  body { display:flex; align-items:center; justify-content:center; }
+
+  #phone {
+    position:relative; width:100%; max-width:420px; height:100vh; max-height:880px;
+    background:#000; overflow:hidden;
+  }
+  @media(min-width:440px){ #phone{ border-radius:32px; height:880px; } }
+
+  /* 空（固定） */
+  #sky { position:absolute; inset:0; background:linear-gradient(180deg,#ffd9a0 0%,#ffb56b 38%,#ff8a5c 64%,#e87a5a 100%); }
+  #sun { position:absolute; left:50%; top:24%; width:120px; height:120px; margin-left:-60px; border-radius:50%;
+    background:radial-gradient(circle,#fff3d0,#ffd27a 60%,rgba(255,180,100,0) 72%); }
+
+  /* 遠景（ゆっくりスクロール＝パララックス） */
+  #far { position:absolute; left:0; bottom:30%; height:120px; will-change:transform; }
+  .roof { position:absolute; bottom:0; width:90px; height:70px; background:#c98a6a; opacity:.5; border-radius:6px 6px 0 0; }
+
+  /* 歩けるワールド層 */
+  #worldwrap { position:absolute; left:0; right:0; top:0; bottom:0; }
+  #world { position:absolute; left:0; top:0; height:100%; will-change:transform; }
+
+  /* 地面 */
+  #ground { position:absolute; left:0; bottom:0; height:30%;
+    background:linear-gradient(180deg,#caa06f,#b07f4f); }
+  #ground::before{ content:""; position:absolute; top:0; left:0; right:0; height:6px; background:rgba(0,0,0,.12); }
+
+  /* お店 */
+  .shop { position:absolute; bottom:30%; width:150px; height:200px; }
+  .shop .body { position:absolute; bottom:0; left:0; right:0; height:140px; border-radius:8px 8px 0 0; box-shadow:0 6px 14px rgba(0,0,0,.25); }
+  .shop .awning { position:absolute; bottom:128px; left:-6px; right:-6px; height:26px; border-radius:6px;
+    background:repeating-linear-gradient(90deg,#e85a5a 0 16px,#fff 16px 32px); }
+  .shop .sign { position:absolute; bottom:150px; left:50%; transform:translateX(-50%); white-space:nowrap;
+    background:#3a2b22; color:#ffe; font-size:12px; font-weight:bold; padding:4px 10px; border-radius:8px; }
+  .shop .icon { position:absolute; bottom:46px; left:50%; transform:translateX(-50%); font-size:46px; }
+  .shop .door { position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:54px; height:74px;
+    background:linear-gradient(180deg,#5b4636,#3a2b22); border-radius:6px 6px 0 0; }
+
+  /* キラッと光る目印 */
+  .poiGlow { position:absolute; bottom:30%; width:30px; height:30px; margin-bottom:6px; border-radius:50%;
+    background:#fff; box-shadow:0 0 0 0 rgba(255,236,150,.9); animation:kira 1.5s infinite; pointer-events:none; }
+  @keyframes kira { 0%{box-shadow:0 0 0 0 rgba(255,236,150,.9);transform:scale(.85)}
+    70%{box-shadow:0 0 0 18px rgba(255,236,150,0);transform:scale(1.1)} 100%{box-shadow:0 0 0 0 rgba(255,236,150,0);transform:scale(.85)} }
+
+  /* NPC・人 */
+  .npc { position:absolute; bottom:30%; width:64px; height:96px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; }
+  .npc .bub { font-size:13px; background:#fff; color:#333; border-radius:10px; padding:1px 7px; margin-bottom:3px; box-shadow:0 2px 5px rgba(0,0,0,.2); animation:bob 2.2s ease-in-out infinite; }
+  .npc .ch { width:56px; height:74px; border-radius:50% 50% 18px 18px; display:flex; align-items:flex-start; justify-content:center; padding-top:8px; font-size:34px; }
+  @keyframes bob{ 50%{ transform:translateY(-4px) } }
+
+  /* 主人公 青太 */
+  #aota { position:absolute; bottom:30%; width:66px; height:92px; margin-left:-33px; z-index:6;
+    display:flex; align-items:flex-start; justify-content:center; padding-top:8px; font-size:40px;
+    background:linear-gradient(160deg,#5b9be0,#34608f); border-radius:50% 50% 18px 18px;
+    box-shadow:0 8px 12px rgba(0,0,0,.25); }
+
+  /* 行き先マーカー */
+  #marker { position:absolute; bottom:30%; width:34px; height:14px; margin:0 0 -2px -17px; border-radius:50%;
+    background:rgba(255,255,255,.2); border:2px solid #ffe08a; opacity:0; pointer-events:none; }
+  #marker.show{ animation:ping .6s ease-out; }
+  @keyframes ping{ from{ opacity:1; transform:scale(.4) } to{ opacity:0; transform:scale(1.4) } }
+
+  /* セリフ窓 */
+  #talk { position:absolute; left:12px; right:12px; bottom:14px; z-index:20; display:none; }
+  #talk.show{ display:block; }
+  #tname { display:inline-block; background:linear-gradient(135deg,#3a4a63,#2a3242); color:#fff; padding:4px 14px;
+    border-radius:10px 10px 0 0; font-size:13px; font-weight:bold; margin-left:6px; }
+  #tname.aota{ background:linear-gradient(135deg,#3f7bc4,#2c5a96); }
+  #tname.akane{ background:linear-gradient(135deg,#e0607a,#c14a64); }
+  #ttext { background:rgba(20,24,30,.94); border:1px solid rgba(255,255,255,.12); border-radius:0 14px 14px 14px;
+    padding:14px 16px; color:#f4f4f4; font-size:15px; line-height:1.65; min-height:78px; box-shadow:0 6px 20px rgba(0,0,0,.4); position:relative; }
+  #tcue{ position:absolute; right:14px; bottom:9px; color:#ffd97a; font-size:12px; animation:blink 1s infinite; }
+  @keyframes blink{ 50%{opacity:.2} }
+
+  #hud { position:absolute; top:10px; left:0; right:0; text-align:center; z-index:15; color:#5a3b28; font-size:12px;
+    background:rgba(255,255,255,.45); padding:5px; backdrop-filter:blur(2px); }
+  #hint2 { position:absolute; top:38px; left:50%; transform:translateX(-50%); z-index:15; color:#fff; font-size:11px;
+    background:rgba(0,0,0,.3); padding:3px 10px; border-radius:10px; opacity:0; transition:opacity .3s; }
+  #hint2.show{ opacity:1; }
+</style>
+</head>
+<body>
+<div id="phone">
+  <div id="sky"><div id="sun"></div></div>
+  <div id="far"></div>
+
+  <div id="worldwrap">
+    <div id="world">
+      <div id="ground"></div>
+      <!-- お店・人・主人公は JS で配置 -->
+      <div id="marker"></div>
+      <div id="aota">🙂</div>
+    </div>
+  </div>
+
+  <div id="hud">画面をタップして歩く　🏪 お店や 🧑 人に近づくと話せるよ</div>
+  <div id="hint2"></div>
+
+  <div id="talk">
+    <div id="tname" class="aota">明智 青太</div>
+    <div id="ttext"><span id="tt"></span><span id="tcue">▼</span></div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const WORLDW=1900;            // 商店街の横幅
+const GROUND_BOTTOM=0.30;     // 地面の高さ割合
+let screenW=()=>$('phone').clientWidth;
+
+// ---- 配置データ ----
+const SHOPS=[
+  {x:230,  name:"パンのいえ", icon:"🥖", color:"#e8c98a"},
+  {x:470,  name:"ほん屋",     icon:"📚", color:"#a8c0d8"},
+  {x:720,  name:"星野文具店", icon:"✏️", color:"#d8b48a"},
+  {x:980,  name:"からあげ繁盛店", icon:"🍗", color:"#e0a25a"},
+  {x:1240, name:"花屋",       icon:"🌷", color:"#e8a8c0"},
+  {x:1560, name:"公園入口",   icon:"🌳", color:"#9cc089"},
+];
+// 触れる相手（お店の前 or 人）
+const POI=[
+  {x:230,  type:"shop", name:"パン屋のおばちゃん", cls:"", face:"👩", lines:[
+    {c:"npc",n:"パン屋のおばちゃん",t:"おかえり、青太くん。あんパン、ひとつどう？　まけとくよ"},
+    {c:"aota",t:"わ、ありがとうございます。……あ、でも今、からあげで頭がいっぱいで"},
+    {c:"npc",n:"パン屋のおばちゃん",t:"ふふ、相変わらずだねえ"} ]},
+  {x:470,  type:"shop", name:"店主", cls:"", face:"🧑", lines:[
+    {c:"npc",n:"本屋の店主",t:"推理小説、入荷したよ。立ち読みは、ほどほどにね"},
+    {c:"aota",t:"……読むと、なんだか落ち着くんです。なんでだろう"} ]},
+  {x:720,  type:"shop", name:"星野のおばあちゃん", cls:"", face:"👵", lines:[
+    {c:"npc",n:"星野のおばあちゃん",t:"青太くん。先日は、本当にありがとうねえ"},
+    {c:"aota",t:"いえ。……あの“写真”のこと、何か思い出したら、教えてください"},
+    {c:"npc",n:"星野のおばあちゃん",t:"……ええ。あの黒い影が、また来なければいいけど"} ]},
+  {x:980,  type:"shop", name:"からあげ", cls:"", face:"🍗", lines:[
+    {c:"aota",t:"……ここだ。においの、発生源。三軒に一軒の、震源地"},
+    {c:"aota",t:"（ごくり）……ひとつだけ。いや、ふたつ。……三つ、いっとこう"} ]},
+  {x:1240, type:"shop", name:"花屋さん", cls:"", face:"🧑‍🌾", lines:[
+    {c:"npc",n:"花屋さん",t:"夕方の花は、いい色に見えるでしょ。赤も、青も"},
+    {c:"aota",t:"……赤と青。なんか、その二つ、僕にとって、特別な気がする"} ]},
+  // 人（道に置く小さな発見）
+  {x:600,  type:"npc", name:"散歩のおじいさん", face:"🧓", lines:[
+    {c:"npc",n:"おじいさん",t:"ふぉっふぉ。いい夕焼けじゃのう。この町は、夕方がいちばん綺麗でな"} ]},
+  {x:860,  type:"npc", name:"男の子", face:"🧒", lines:[
+    {c:"npc",n:"男の子",t:"おにいちゃん、たんてい？　かっこいい！"},
+    {c:"aota",t:"えへへ。……まだ、見習いだけどね"} ]},
+  {x:1120, type:"npc", name:"ねこ", face:"🐈", lines:[
+    {c:"npc",n:"ねこ",t:"……にゃ"},
+    {c:"aota",t:"（なでていいのかな……）"} ]},
+  {x:1430, type:"npc", name:"栗栖 紅音", face:"🙂", akane:true, lines:[
+    {c:"akane",t:"あ、明智くん。奇遇だね。お買い物？"},
+    {c:"aota",t:"うん。町、まだ覚えきれてなくて。歩いてみてるんだ"},
+    {c:"akane",t:"ふふ。……って、また、からあげのほう見てるでしょ"},
+    {c:"aota",t:"み、見てない。……二軒どなりの、においが、つよいだけ"} ]},
+  {x:1560, type:"shop", name:"公園", face:"🌳", lines:[
+    {c:"aota",t:"（公園のベンチ。……なんでだろう。ここ、すごく、懐かしい感じがする）"},
+    {c:"mono",t:"― 子どもの、笑い声。小さな手。……でも、思い出せない。"} ]},
+];
+
+// ---- ワールド構築 ----
+const world=$('world'), far=$('far');
+world.style.width=WORLDW+'px';
+// 遠景の屋根
+let farHTML='';
+for(let i=0;i<WORLDW/120;i++){ farHTML+='<div class="roof" style="left:'+(i*130+20)+'px;background:hsl('+(18+i*7)+',45%,'+(58+(i%3)*6)+'%)"></div>'; }
+far.style.width=(WORLDW*0.7)+'px'; far.innerHTML=farHTML;
+// お店
+SHOPS.forEach(s=>{
+  const el=document.createElement('div'); el.className='shop'; el.style.left=(s.x-75)+'px';
+  el.innerHTML='<div class="body" style="background:linear-gradient(160deg,'+s.color+',rgba(0,0,0,.15))"></div>'+
+    '<div class="awning"></div><div class="sign">'+s.name+'</div>'+
+    '<div class="icon">'+s.icon+'</div><div class="door"></div>';
+  world.insertBefore(el, $('marker'));
+});
+// 触れる相手＋光
+POI.forEach((p,idx)=>{
+  if(p.type==='npc'){
+    const el=document.createElement('div'); el.className='npc'; el.style.left=(p.x-32)+'px';
+    const bub = p.akane? '♪' : (p.face==='🐈'?'…':'…');
+    const bg = p.akane? 'linear-gradient(160deg,#f08098,#c45068)' : 'linear-gradient(160deg,#d8d2c4,#aaa498)';
+    el.innerHTML='<div class="bub">'+bub+'</div><div class="ch" style="background:'+bg+'">'+p.face+'</div>';
+    el.onclick=(e)=>{ e.stopPropagation(); goAndTalk(p); };
+    world.insertBefore(el,$('marker'));
+  }
+  // 光る目印（お店も人も）
+  const g=document.createElement('div'); g.className='poiGlow'; g.style.left=(p.x-15)+'px';
+  g.dataset.poi=idx;
+  world.insertBefore(g,$('marker'));
+});
+// お店クリック領域（doorあたり）→ goAndTalk
+document.querySelectorAll('.shop').forEach((el,i)=>{
+  el.onclick=(e)=>{ e.stopPropagation(); const sx=SHOPS[i].x; const p=POI.find(p=>Math.abs(p.x-sx)<6&&p.type==='shop'); if(p) goAndTalk(p); };
+});
+
+// ---- 移動エンジン ----
+let posX=120, targetX=120, facing=1, walking=false, pending=null, talking=false;
+const aota=$('aota'), marker=$('marker');
+let last=null;
+function loop(ts){
+  if(last==null)last=ts; const dt=Math.min(48,ts-last); last=ts;
+  if(walking && !talking){
+    const diff=targetX-posX; const dir=Math.sign(diff); const step=0.42*dt;
+    if(Math.abs(diff)<=step){ posX=targetX; walking=false; onArrive(); }
+    else { posX+=dir*step; facing=dir; }
+  }
+  // 描画
+  const bob = walking? Math.sin(ts/90)*4 : 0;
+  aota.style.left=posX+'px';
+  aota.style.transform='translateY('+bob+'px) rotate('+(walking?facing*3:0)+'deg)';
+  // カメラ
+  let cam=Math.max(0, Math.min(WORLDW-screenW(), posX-screenW()/2));
+  world.style.transform='translateX('+(-cam)+'px)';
+  far.style.transform='translateX('+(-cam*0.4)+'px)';   // パララックス
+  // 近接ヒント
+  updateProximity();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+function onArrive(){
+  if(pending){ const p=pending; pending=null; talk(p); }
+}
+function updateProximity(){
+  if(talking){ $('hint2').classList.remove('show'); return; }
+  let near=POI.find(p=>Math.abs(p.x-posX)<70);
+  if(near && !walking){ $('hint2').textContent='▲ '+(near.type==='npc'?near.name:near.name)+' に話しかけられる'; $('hint2').classList.add('show'); }
+  else $('hint2').classList.remove('show');
+}
+
+// 画面タップ＝その地点まで歩く
+$('worldwrap').addEventListener('click',(e)=>{
+  if(talking) return;
+  const cam=Math.max(0, Math.min(WORLDW-screenW(), posX-screenW()/2));
+  let wx=e.clientX - $('phone').getBoundingClientRect().left + cam;
+  walkTo(wx);
+});
+function walkTo(wx){
+  targetX=Math.max(60, Math.min(WORLDW-60, wx)); walking=true; pending=null;
+  marker.style.left=targetX+'px'; marker.classList.remove('show'); void marker.offsetWidth; marker.classList.add('show');
+}
+function goAndTalk(p){
+  if(talking)return;
+  // お店/人の少し手前で止まる
+  const front = p.x + (p.x>posX? -64 : 64);
+  targetX=Math.max(60,Math.min(WORLDW-60,front)); walking=true; pending=p;
+  facing = p.x>posX?1:-1;
+  marker.style.left=p.x+'px'; marker.classList.remove('show'); void marker.offsetWidth; marker.classList.add('show');
+  // すでに目の前なら即会話
+  if(Math.abs(targetX-posX)<8){ walking=false; pending=null; talk(p); }
+}
+
+// ---- 会話 ----
+let dlines=[], di=0, typing=false, typeT=null;
+function talk(p){
+  talking=true; dlines=p.lines; di=0; $('talk').classList.add('show'); showD();
+}
+function showD(){
+  if(di>=dlines.length){ closeTalk(); return; }
+  const ln=dlines[di]; const isAota=ln.c==='aota', isAkane=ln.c==='akane', isMono=ln.c==='mono';
+  const nm=$('tname'); nm.className='';
+  if(isAota){ nm.classList.add('aota'); nm.textContent='明智 青太'; nm.style.display='inline-block'; }
+  else if(isAkane){ nm.classList.add('akane'); nm.textContent='栗栖 紅音'; nm.style.display='inline-block'; }
+  else if(isMono){ nm.style.display='none'; }
+  else { nm.textContent=ln.n||''; nm.style.display='inline-block'; }
+  $('ttext').style.fontStyle=isMono?'italic':'normal';
+  typeText(ln.t);
+}
+function typeText(t){
+  const span=$('tt'), cue=$('tcue'); cue.style.display='none'; typing=true; span.textContent=''; let i=0;
+  clearInterval(typeT); typeT=setInterval(()=>{ span.textContent=t.slice(0,++i);
+    if(i>=t.length){ clearInterval(typeT); typing=false; cue.style.display='block'; } },18);
+}
+$('talk').addEventListener('click',()=>{
+  if(typing){ clearInterval(typeT); typing=false; $('tt').textContent=dlines[di].t; $('tcue').style.display='block'; return; }
+  di++; showD();
+});
+function closeTalk(){ $('talk').classList.remove('show'); talking=false; }
+</script>
+</body>
+</html>

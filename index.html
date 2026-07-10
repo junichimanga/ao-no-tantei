@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>橙ヶ丘ミステリー 第一話（プロトタイプ）</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html,body { height:100%; background:#111418; font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif; }
+  body { display:flex; align-items:center; justify-content:center; }
+
+  /* スマホ縦画面フレーム */
+  #phone {
+    position:relative; width:100%; max-width:420px; height:100vh; max-height:880px;
+    background:#000; overflow:hidden; box-shadow:0 0 40px rgba(0,0,0,.6);
+    border-radius:0;
+  }
+  @media(min-width:440px){ #phone{ border-radius:32px; height:880px; } }
+
+  .screen { position:absolute; inset:0; display:none; flex-direction:column; }
+  .screen.active { display:flex; }
+
+  /* 背景 */
+  #stage { position:absolute; inset:0; transition:background .6s ease; }
+
+  /* 上：絵・演出ゾーン（約上半分） */
+  #artzone { position:absolute; top:0; left:0; right:0; height:62%; overflow:hidden; }
+
+  /* 立ち絵 */
+  .sprite {
+    position:absolute; bottom:0; left:50%; transform:translateX(-50%) translateY(20px);
+    width:180px; height:230px; border-radius:90px 90px 24px 24px;
+    display:flex; align-items:flex-start; justify-content:center; padding-top:34px;
+    font-size:74px; opacity:0; transition:opacity .35s, transform .35s; filter:saturate(1.05);
+  }
+  .sprite.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* 手がかりトレイ（上部） */
+  #clueTray {
+    position:absolute; top:10px; left:10px; right:10px; display:flex; gap:6px; flex-wrap:wrap;
+    z-index:5;
+  }
+  .clue {
+    background:rgba(255,255,255,.92); border-radius:10px; padding:5px 9px; font-size:11px;
+    color:#333; box-shadow:0 2px 6px rgba(0,0,0,.25); animation:pop .3s ease;
+    border-left:4px solid #4a90d9;
+  }
+  @keyframes pop { from{ transform:scale(.6); opacity:0 } to{ transform:scale(1); opacity:1 } }
+
+  /* 調べるポイント */
+  .hotspot {
+    position:absolute; width:54px; height:54px; border-radius:50%; cursor:pointer; z-index:4;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .hotspot .glow {
+    width:20px; height:20px; border-radius:50%; background:#fff;
+    box-shadow:0 0 0 0 rgba(255,255,255,.9); animation:kira 1.4s infinite;
+  }
+  @keyframes kira {
+    0%{ box-shadow:0 0 0 0 rgba(255,236,150,.9); transform:scale(.9) }
+    70%{ box-shadow:0 0 0 16px rgba(255,236,150,0); transform:scale(1.1) }
+    100%{ box-shadow:0 0 0 0 rgba(255,236,150,0); transform:scale(.9) }
+  }
+  .hotspot.done .glow { background:#7a7; animation:none; box-shadow:none; opacity:.5; }
+
+  /* 下：メッセージ＆操作ゾーン（親指ゾーン） */
+  #msgzone { position:absolute; left:0; right:0; bottom:0; height:38%; padding:12px 14px 18px; z-index:6; }
+  #namebox {
+    display:inline-block; background:linear-gradient(135deg,#3a4a63,#2a3242); color:#fff;
+    padding:5px 16px; border-radius:10px 10px 0 0; font-size:14px; font-weight:bold; margin-left:6px;
+    min-height:28px;
+  }
+  #namebox.aota{ background:linear-gradient(135deg,#3f7bc4,#2c5a96); }
+  #namebox.akane{ background:linear-gradient(135deg,#e0607a,#c14a64); }
+  #textbox {
+    background:rgba(20,24,30,.92); border:1px solid rgba(255,255,255,.12); border-radius:0 14px 14px 14px;
+    padding:16px 16px 14px; color:#f2f2f2; font-size:16px; line-height:1.7; min-height:104px;
+    box-shadow:0 6px 20px rgba(0,0,0,.4); position:relative;
+  }
+  #textbox.mono{ font-style:italic; color:#cdd6e0; background:rgba(20,24,30,.78); }
+  #tapcue { position:absolute; right:14px; bottom:10px; color:#ffd97a; font-size:13px; animation:blink 1s infinite; }
+  @keyframes blink { 50%{ opacity:.2 } }
+
+  /* 選択肢・手がかり選択ボタン */
+  #choices, #gchoices { position:absolute; left:14px; right:14px; bottom:18px; z-index:7; display:flex; flex-direction:column; gap:9px; }
+  .btn {
+    background:linear-gradient(135deg,#ffffff,#eef2f7); color:#2a3242; border:none; border-radius:14px;
+    padding:14px; font-size:15px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,.3); cursor:pointer;
+    transition:transform .08s;
+  }
+  .btn:active{ transform:scale(.97); }
+  .btn.clueBtn{ border-left:5px solid #4a90d9; text-align:left; }
+
+  /* タイトル */
+  #title .ttl { color:#fff; text-align:center; margin-top:34%; }
+  #title h1 { font-size:30px; letter-spacing:2px; text-shadow:0 2px 10px rgba(0,0,0,.5); }
+  #title .sub { font-size:14px; color:#ffd9b0; margin-top:10px; }
+  #title .ep { font-size:13px; color:#cfd6de; margin-top:26px; }
+
+  /* カットイン演出 */
+  #cutin {
+    position:absolute; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.55); overflow:hidden;
+  }
+  #cutin.show{ display:flex; }
+  #cutin .band {
+    position:absolute; left:-10%; right:-10%; height:120px; transform:rotate(-7deg);
+    background:linear-gradient(90deg,#c14a64,#e0607a,#ffd97a);
+    box-shadow:0 0 30px rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center;
+    animation:slide .5s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes slide { from{ transform:translateX(-30%) rotate(-7deg); opacity:0 } to{ transform:translateX(0) rotate(-7deg); opacity:1 } }
+  #cutin .band span { color:#fff; font-size:30px; font-weight:900; letter-spacing:3px; text-shadow:0 2px 6px rgba(0,0,0,.4); }
+
+  /* 解決 reward */
+  #result .panel { margin:auto; text-align:center; color:#fff; }
+  #result h2 { font-size:30px; color:#ffe08a; text-shadow:0 2px 12px rgba(255,200,80,.5); animation:pop .5s; }
+  #result .stars { font-size:34px; margin:16px 0; letter-spacing:6px; }
+  #result p { font-size:14px; color:#dde3ea; line-height:1.8; padding:0 28px; }
+
+  .sparkle{ position:absolute; font-size:20px; animation:floatUp 1.6s ease-out forwards; pointer-events:none; z-index:8;}
+  @keyframes floatUp{ from{ transform:translateY(0) scale(.5); opacity:1 } to{ transform:translateY(-120px) scale(1.2); opacity:0 } }
+
+  .hint{ position:absolute; top:8px; left:50%; transform:translateX(-50%); color:rgba(255,255,255,.4); font-size:11px; z-index:9; }
+</style>
+</head>
+<body>
+<div id="phone">
+
+  <!-- タイトル -->
+  <div id="title" class="screen active">
+    <div id="stage" style="background:linear-gradient(160deg,#1b2a4a,#3a2c44 55%,#7a4a3a)"></div>
+    <div class="ttl" style="position:relative;z-index:2">
+      <h1>橙ヶ丘<br>ミステリー</h1>
+      <div class="sub">― 赤い夕暮れの、ちいさな泥棒 ―</div>
+      <div class="ep">第一話　プロトタイプ</div>
+    </div>
+    <div id="choices"><button class="btn" onclick="startGame()">▶ はじめる</button></div>
+  </div>
+
+  <!-- メインの遊び画面 -->
+  <div id="game" class="screen">
+    <div id="stage"></div>
+    <div id="artzone">
+      <div id="clueTray"></div>
+      <div class="sprite" id="spriteL"></div>
+      <div class="sprite" id="spriteR" style="left:auto;right:6px;transform:translateX(0) translateY(20px)"></div>
+    </div>
+    <div class="hint" id="hint"></div>
+    <div id="msgzone" onclick="onTapMsg()">
+      <div id="namebox" style="visibility:hidden">　</div>
+      <div id="textbox"><span id="txt"></span><span id="tapcue" style="display:none">▼</span></div>
+    </div>
+    <div id="gchoices" style="display:none"></div>
+    <div id="cutin"><div class="band"><span id="cutinText">変ですね</span></div></div>
+  </div>
+
+  <!-- 解決 -->
+  <div id="result" class="screen">
+    <div id="stage" style="background:radial-gradient(circle at 50% 35%,#3a3050,#15171f)"></div>
+    <div class="panel" style="position:relative;z-index:2">
+      <h2>事件解決！</h2>
+      <div class="stars">⭐⭐⭐</div>
+      <p id="resultText"></p>
+    </div>
+    <div id="choices2" style="position:absolute;left:14px;right:14px;bottom:24px;z-index:7"></div>
+  </div>
+
+</div>
+
+<script>
+// ====== キャラ定義 ======
+const CH = {
+  aota:   { name:"明智 青太", cls:"aota",  face:"🙂", color:"linear-gradient(160deg,#5b9be0,#34608f)" },
+  aotaS:  { name:"明智 青太", cls:"aota",  face:"😐", color:"linear-gradient(160deg,#3a6ea8,#23405f)" },
+  akane:  { name:"栗栖 紅音", cls:"akane", face:"🙂", color:"linear-gradient(160deg,#f08098,#c45068)" },
+  baa:    { name:"店主のおばあちゃん", cls:"", face:"👵", color:"linear-gradient(160deg,#c8ad84,#9c8462)" },
+  oku:    { name:"近所の奥さん", cls:"", face:"🧑", color:"linear-gradient(160deg,#a895b5,#7d6c8c)" },
+  sensei: { name:"先生", cls:"", face:"🧑‍🏫", color:"linear-gradient(160deg,#9aa4ad,#6f7880)" },
+  mono:   { name:"", cls:"", face:"", color:"" },
+  nar:    { name:"", cls:"", face:"", color:"" },
+};
+// 背景
+const BG = {
+  train:"linear-gradient(160deg,#10182e,#1d2440)",
+  class:"linear-gradient(160deg,#cfe0ee,#aec4d8)",
+  street:"linear-gradient(160deg,#ffb56b,#ff8a5c 60%,#d96b5a)",
+  shop:"linear-gradient(160deg,#e8c89a,#caa472)",
+  shopDark:"linear-gradient(160deg,#5a4a52,#332a36)",
+  dusk:"linear-gradient(160deg,#ff9a5c,#c4607a 70%,#3a2c50)",
+};
+
+// ====== 第一話 シナリオ ======
+// type: adv(会話) / search(探す) / deduction(突きつけ) / end
+const SCENES = [
+  // 0 コールドオープン
+  {type:"adv", bg:BG.train, lines:[
+    {c:"nar", t:"― 暗転。途切れ途切れの、記憶のかけら。"},
+    {c:"mono", t:"子どもの、笑い声。遠い。小さな手が、こちらに伸びてくる。「――くん、こっち！」"},
+    {c:"mono", t:"赤い、夕日。そして――その光景を、ぐにゃりと、真っ黒な影が、塗りつぶす。"},
+    {c:"aota", t:"……っ！"},
+    {c:"nar", t:"がたん、と電車が揺れる。窓の外、見たことのない田舎の風景。"},
+    {c:"aota", t:"……夢。今の、誰の声……？"},
+    {c:"mono", t:"（思い出せない。……僕には、ここに来る前の記憶が、ない）"},
+    {c:"nar", t:"車内アナウンス「まもなく、橙ヶ丘――」"},
+    {c:"aota", t:"……ここが。僕の、新しい町"},
+  ]},
+  // 1 教室
+  {type:"adv", bg:BG.class, lines:[
+    {c:"sensei", t:"今日から転校生だ。明智くん、自己紹介を"},
+    {c:"aota", t:"……明智、青太です。いろいろあって、前のこと、あんまり覚えてなくて。これから、町のこと、みんなのこと、覚えます"},
+    {c:"nar", t:"（一瞬、しんとする。青太、間を埋めようと、ぽろっと）"},
+    {c:"aota", t:"……あ。来る途中、この町、からあげのにおいが、三軒に一軒くらい、しました"},
+    {c:"nar", t:"（教室、どっと笑う）"},
+    {c:"sensei", t:"つかみは上々だな。明智の席は、栗栖の隣だ。栗栖、案内係を頼む"},
+    {c:"akane", t:"……はい。（なんか、ふわふわした子が来たな……）"},
+  ]},
+  // 2 商店街
+  {type:"adv", bg:BG.street, lines:[
+    {c:"akane", t:"ここが商店街。学校の帰り、だいたいここ通るから。覚えといて"},
+    {c:"aota", t:"はーい。……あ。本当だ。からあげのにおい"},
+    {c:"akane", t:"さっきから、からあげの話しかしてなくない？"},
+    {c:"aota", t:"ごめん。鼻が、勝手に。……でも変だな。自分が何が好きかも覚えてないのに、からあげのにおいだけは、なんか、知ってる"},
+    {c:"akane", t:"……（記憶がない、って、本当なんだ。この子）"},
+    {c:"nar", t:"少し歩く。青太、ふと足を止める。空気が、変わる。"},
+    {c:"aota", t:"……ねえ、栗栖さん。ここ、初めてのはずなのに。なんか……知ってる、感じがする"},
+    {c:"akane", t:"……（え。なんで、いま、わたしの胸、ざわっと――）"},
+    {c:"akane", t:"……気のせい、でしょ。ほら、文具店でノート買うんでしょ"},
+  ]},
+  // 3 文具店・事件発生
+  {type:"adv", bg:BG.shop, lines:[
+    {c:"baa", t:"あらあら、紅音ちゃん。そちらの子は？"},
+    {c:"akane", t:"転校生の、明智くんです。今日から。……ちょっと、目を離すと心配な感じで"},
+    {c:"aota", t:"初対面の人に、引き継ぎ事項みたいに言われてる"},
+    {c:"baa", t:"ふふ。ノートは、そこの棚――"},
+    {c:"nar", t:"そのとき。「きゃあああっ！！」"},
+    {c:"nar", t:"裏口から、真っ黒な人影が、だっと飛び出す。走り去る。一瞬。顔は、見えない。静かで、速い。"},
+    {c:"aota", t:"――"},
+    {c:"baa", t:"お金が……レジのお金が、さっきまで、あったのに……"},
+    {c:"aota", t:"……おばあちゃん、深呼吸。だいじょうぶです。ちょっとだけ、見てもいいですか"},
+    {c:"akane", t:"（……さっきまでの、ふわふわした子と、目が、違う）"},
+  ]},
+  // 4 探すパート
+  {type:"search", bg:BG.shop,
+   intro:{c:"aota", t:"足あとが、まだ乾かないうちに。……光ってるところ、調べてみよう（タップ）"},
+   need:3,
+   hotspots:[
+     {x:46,y:18, label:"鉛筆", clue:false, line:{c:"aota", t:"鉛筆、ぽきっと折れてる。……あ、これは僕。さっき肘で"}, sub:{c:"akane",t:"現場で最初に証拠汚した人、君なんだけど"}},
+     {x:74,y:40, label:"レジ", clue:true, name:"お札だけ無い", line:{c:"aota", t:"お札だけ、ばっと無くなってる。小銭は残ってる。……試食コーナーで高いハムだけ食べてく人みたいな、迷いのなさ"}, sub:{c:"akane",t:"例えが、急に生々しい……"}},
+     {x:22,y:46, label:"裏口の床", clue:true, name:"裏庭の泥の足あと", line:{c:"baa", t:"裏庭、今朝水やりしたから、そこだけ、ぬかるんでてねえ"}, sub:{c:"aota",t:"犯人、裏口から出入りした。覚えとこ"}},
+     {x:18,y:24, label:"裏口のドア", clue:true, name:"鍵＝常連だけが知る", line:{c:"baa", t:"裏口の鍵のありかを知ってるのは、よく来る常連さんくらいで"}, sub:{c:"aota",t:"鍵の場所を、知ってる人……ふむ"}},
+   ],
+   outro:{c:"aota", t:"……うん。だいたい、見えた。みんなに、話を聞こう"}
+  },
+  // 5 突きつけ
+  {type:"deduction", bg:BG.shopDark,
+   pre:[
+     {c:"aotaS", t:"事件のとき、お店にいたのはこの三人。……奥さん。どこにいました？"},
+     {c:"oku", t:"ずーっと、そこの正面のレジの前よ。一歩も、動いてないわ"},
+     {c:"nar", t:"一拍。沈黙。"},
+     {c:"aotaS", t:"正面のレジの前に、ずっと。一歩も、動かずに……？"},
+   ],
+   q:"奥さんの証言の「ムジュン」を突く。どの手がかりを突きつける？",
+   options:[
+     {name:"お札だけ無い", ok:false, miss:{c:"aota",t:"うーん。それは、犯人が急いでた証拠。でも“この人が嘘をついてる”証明には、ならないかな"}},
+     {name:"裏庭の泥の足あと＋奥さんの靴", ok:true},
+     {name:"鍵＝常連だけが知る", ok:false, miss:{c:"aota",t:"惜しい。常連は何人かいる。これだけじゃ、奥さん一人に、しぼれない"}},
+   ],
+   hitText:"変ですね",
+   post:[
+     {c:"aotaS", t:"犯人は裏口から逃げた。裏庭は今朝の水やりでぬかるんでた。だから犯人の靴の裏には、裏庭の土がつく"},
+     {c:"aotaS", t:"正面にずっといたはずのあなたの靴の裏に。……どうして、裏庭の土が、ついてるんですか？"},
+     {c:"oku", t:"……っ。ご、ごめんなさい。知らない男の人に、頼まれたのよ。レジの奥の、古い写真を持ってこいって。お金は、ついで……"},
+     {c:"aota", t:"……写真？"},
+   ]
+  },
+  // 6 解決後（謎）
+  {type:"adv", bg:BG.dusk, lines:[
+    {c:"baa", t:"……あの写真を。どうして、今ごろ……。昔ね、ある人から預かったの。『いつか必ず取りに来る』って。でも、もう、ずーっと会ってないのに"},
+    {c:"oku", t:"頼んできた男の人……フードを深くかぶってて、顔が見えなくて。ただ、声が……ぞっとするくらい、静かで"},
+    {c:"nar", t:"窓の外。黒い影が、ほんの一瞬、遠くの角に。もう一度見たときには、いない。"},
+    {c:"mono", t:"（あの影を見ると、胸の奥が、ざわざわする。……コールドオープンの夢と、同じだ）"},
+    {c:"baa", t:"青太くん、ありがとうねえ。いい探偵さんに、なるよ"},
+    {c:"aota", t:"……いえ。当然のことを、したまでです"},
+    {c:"akane", t:"（お……ちょっと、かっこいい）……ねえ、明智くん。ちょっとだけ、見直した"},
+    {c:"aota", t:"えへへ。……あ、じゃあお礼に、からあげ、おごってくれる？　ここからでも、におうから。二軒どなりだし"},
+    {c:"akane", t:"ふふっ。なにそれ。朝からずっと、からあげのことしか言ってないじゃん"},
+    {c:"aota", t:"うん。だって、それだけは、覚えてるから"},
+    {c:"akane", t:"……しょうがないなあ。一個だけだよ。今日だけ、特別。転校祝い"},
+    {c:"nar", t:"二人、商店街を並んで歩く。さっきまでより、少しだけ、距離が近い。――影が、二つ、重なって、見えた。"},
+  ]},
+  {type:"end"}
+];
+
+// ====== エンジン ======
+let si=0, li=0, typing=false, typeTimer=null, foundClues=[], clueNames=[];
+const $=id=>document.getElementById(id);
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active'); }
+
+function startGame(){ si=0; li=0; foundClues=[]; clueNames=[]; $('clueTray').innerHTML=''; show('game'); runScene(); }
+
+function runScene(){
+  const sc=SCENES[si];
+  $('game').querySelector('#stage').style.background=sc.bg||BG.train;
+  $('gchoices').style.display='none';
+  clearHotspots();
+  $('hint').textContent='';
+  if(sc.type==='adv'){ li=0; setSprites(null); showLine(); }
+  else if(sc.type==='search'){ startSearch(sc); }
+  else if(sc.type==='deduction'){ startDeduction(sc); }
+  else if(sc.type==='end'){ goResult(); }
+}
+
+function nextScene(){ si++; if(si>=SCENES.length){ goResult(); return;} runScene(); }
+
+// ---- 会話 ----
+function showLine(){
+  const sc=SCENES[si];
+  if(li>=sc.lines.length){ nextScene(); return; }
+  const ln=sc.lines[li];
+  renderLine(ln);
+}
+function renderLine(ln){
+  const ch=CH[ln.c]||CH.nar;
+  const nb=$('namebox'), tb=$('textbox');
+  // 名前
+  nb.className=''; if(ch.cls) nb.classList.add(ch.cls);
+  if(ch.name){ nb.style.visibility='visible'; nb.textContent=ch.name; }
+  else { nb.style.visibility='hidden'; nb.textContent='　'; }
+  // モノローグ/地の文スタイル
+  tb.classList.toggle('mono', ln.c==='mono'||ln.c==='nar');
+  // 立ち絵
+  if(ln.c==='aota'||ln.c==='aotaS') setSprites(ln.c,'L');
+  else if(ln.c==='akane') setSprites('akane','R');
+  else if(ch.face) setSprites(ln.c,'L');
+  else setSprites(null);
+  // タイプ表示
+  typeText(ln.t);
+}
+function typeText(t){
+  const span=$('txt'), cue=$('tapcue');
+  cue.style.display='none'; typing=true; span.textContent='';
+  let i=0; clearInterval(typeTimer);
+  typeTimer=setInterval(()=>{
+    span.textContent=t.slice(0,++i);
+    if(i>=t.length){ clearInterval(typeTimer); typing=false; cue.style.display='block'; }
+  }, 18);
+}
+function onTapMsg(){
+  const sc=SCENES[si];
+  if(sc.type==='search'){ return; } // 探す中はメッセージタップ無効
+  if(typing){ // 早送り
+    clearInterval(typeTimer); typing=false;
+    const ln=sc.lines? sc.lines[li] : currentLine;
+    $('txt').textContent=ln.t; $('tapcue').style.display='block'; return;
+  }
+  if(sc.type==='adv'){ li++; showLine(); }
+  else if(sc.type==='deduction'){ deductionAdvance(); }
+}
+
+// ---- 立ち絵 ----
+function setSprites(who, side){
+  const L=$('spriteL'), R=$('spriteR');
+  if(who===null){ L.classList.remove('show'); R.classList.remove('show'); return; }
+  const ch=CH[who];
+  if(side==='R'){ R.style.background=ch.color; R.textContent=ch.face; R.classList.add('show'); L.classList.remove('show'); }
+  else { L.style.background=ch.color; L.textContent=ch.face; L.classList.add('show'); if(who!=='akane') R.classList.remove('show'); }
+}
+
+// ---- 探すパート ----
+let currentLine=null;
+function startSearch(sc){
+  $('namebox').style.visibility='visible'; $('namebox').className='aota'; $('namebox').textContent=CH.aota.name;
+  $('textbox').classList.remove('mono');
+  currentLine=sc.intro; $('txt').textContent=sc.intro.t; $('tapcue').style.display='none';
+  setSprites('aota','L');
+  $('hint').textContent='現場：星野文具店（光る所をタップ）';
+  const art=$('artzone');
+  sc.hotspots.forEach((h,idx)=>{
+    const el=document.createElement('div');
+    el.className='hotspot'; el.style.left=h.x+'%'; el.style.top=h.y+'%';
+    el.innerHTML='<div class="glow"></div>';
+    el.onclick=()=>investigate(sc,h,el);
+    el.dataset.hs='1'; art.appendChild(el);
+  });
+  updateSearchProgress(sc);
+}
+function investigate(sc,h,el){
+  // セリフ表示（メイン→サブ）
+  const ch=CH[h.line.c];
+  $('namebox').className=ch.cls||''; $('namebox').textContent=ch.name||'　';
+  $('namebox').style.visibility=ch.name?'visible':'hidden';
+  $('textbox').classList.toggle('mono', h.line.c==='nar'||h.line.c==='mono');
+  $('txt').textContent=h.line.t; $('tapcue').style.display='none';
+  if(h.line.c==='aota'||h.line.c==='baa'||h.line.c==='oku') setSprites(h.line.c,'L');
+  if(h.sub){ setTimeout(()=>{ const s=CH[h.sub.c]; $('namebox').className=s.cls||''; $('namebox').textContent=s.name; if(s.c==='akane')setSprites('akane','R'); $('txt').textContent='└ '+h.sub.t; }, 1100); }
+  if(!el.classList.contains('done')){
+    el.classList.add('done');
+    if(h.clue){ addClue(h.name); }
+  }
+  updateSearchProgress(sc);
+}
+function addClue(name){
+  if(clueNames.includes(name))return;
+  clueNames.push(name);
+  const c=document.createElement('div'); c.className='clue'; c.textContent='🔍 '+name;
+  $('clueTray').appendChild(c);
+}
+function updateSearchProgress(sc){
+  $('gchoices').style.display='none';
+  if(clueNames.length>=sc.need){
+    $('hint').textContent='手がかりが揃った！';
+    const box=$('gchoices'); box.innerHTML=''; box.style.display='flex';
+    const b=document.createElement('button'); b.className='btn';
+    b.textContent='▶ みんなに話を聞く';
+    b.onclick=()=>{ // outro→次
+      $('txt').textContent=sc.outro.t; $('namebox').className='aota'; $('namebox').textContent=CH.aota.name;
+      box.style.display='none'; clearHotspots();
+      setTimeout(nextScene, 900);
+    };
+    box.appendChild(b);
+  }
+}
+function clearHotspots(){ document.querySelectorAll('.hotspot').forEach(e=>e.remove()); }
+
+// ---- 突きつけ ----
+let dStage=0, curD=null;
+function startDeduction(sc){ curD=sc; dStage=0; $('namebox').style.visibility='visible'; deductionAdvance(); }
+function deductionAdvance(){
+  const sc=curD;
+  if(dStage<sc.pre.length){ currentLine=sc.pre[dStage]; renderDLine(sc.pre[dStage]); dStage++;
+    if(dStage===sc.pre.length){ setTimeout(showDeductionChoices,400);} return; }
+}
+function renderDLine(ln){
+  const ch=CH[ln.c]; $('namebox').className=ch.cls||''; $('namebox').textContent=ch.name||'　';
+  $('namebox').style.visibility=ch.name?'visible':'hidden';
+  $('textbox').classList.toggle('mono', ln.c==='nar'||ln.c==='mono');
+  $('txt').textContent=ln.t; $('tapcue').style.display=(ln.c==='nar'?'none':'block');
+  if(ln.c==='aotaS') setSprites('aotaS','L');
+  else if(ln.c==='oku') setSprites('oku','L');
+  else if(ln.c==='akane') setSprites('akane','R');
+}
+function showDeductionChoices(){
+  const sc=curD; $('hint').textContent='';
+  $('txt').textContent='💡 '+sc.q; $('namebox').style.visibility='hidden'; $('tapcue').style.display='none';
+  const box=$('gchoices'); box.innerHTML=''; box.style.display='flex';
+  sc.options.forEach(op=>{
+    const b=document.createElement('button'); b.className='btn clueBtn';
+    b.textContent='🔍 '+op.name;
+    b.onclick=()=>{
+      if(op.ok){ box.style.display='none'; cutin(sc.hitText, ()=>playPost(sc)); }
+      else { renderDLine(op.miss); }
+    };
+    box.appendChild(b);
+  });
+}
+function playPost(sc){
+  let i=0; const step=()=>{
+    if(i>=sc.post.length){ setTimeout(nextScene,300); return; }
+    renderDLine(sc.post[i]); i++;
+    // タップで進む
+    $('msgzone').onclick=()=>{ if(typing)return; step(); };
+  };
+  // post はタイプ表示にする
+  $('msgzone').onclick=null;
+  let i2=0;
+  const playOne=()=>{
+    if(i2>=sc.post.length){ $('msgzone').onclick=onTapMsg; setTimeout(nextScene,300); return; }
+    const ln=sc.post[i2]; const ch=CH[ln.c];
+    $('namebox').className=ch.cls||''; $('namebox').textContent=ch.name||'　'; $('namebox').style.visibility=ch.name?'visible':'hidden';
+    $('textbox').classList.toggle('mono', ln.c==='nar'||ln.c==='mono');
+    if(ln.c==='aotaS'||ln.c==='aota')setSprites(ln.c,'L'); else if(ln.c==='oku')setSprites('oku','L');
+    typeText(ln.t); i2++;
+    $('msgzone').onclick=()=>{ if(typing){ clearInterval(typeTimer); typing=false; $('txt').textContent=ln.t; $('tapcue').style.display='block'; } else { playOne(); } };
+  };
+  playOne();
+}
+
+// ---- カットイン ----
+function cutin(text, cb){
+  $('cutinText').textContent=text;
+  const c=$('cutin'); c.classList.add('show');
+  // きらめき
+  for(let k=0;k<10;k++){ const s=document.createElement('div'); s.className='sparkle'; s.textContent='✦';
+    s.style.left=(10+Math.random()*80)+'%'; s.style.top=(30+Math.random()*40)+'%';
+    s.style.color=k%2?'#ffd97a':'#fff'; $('phone').appendChild(s); setTimeout(()=>s.remove(),1600); }
+  setTimeout(()=>{ c.classList.remove('show'); cb&&cb(); }, 1100);
+}
+
+// ---- 解決 ----
+function goResult(){
+  show('result');
+  $('resultText').innerHTML="星野文具店・盗難事件、解決。<br>でも――狙われた“古い写真”の謎。<br>静かな声の、黒い影。<br><br>青太の失くした記憶と、何かがつながっている……？<br><br><b>つづく</b>";
+  for(let k=0;k<16;k++){ const s=document.createElement('div'); s.className='sparkle'; s.textContent=k%3?'✦':'⭐';
+    s.style.left=(Math.random()*90)+'%'; s.style.top=(40+Math.random()*30)+'%';
+    s.style.color=['#ffd97a','#fff','#9bd0ff'][k%3]; s.style.animationDelay=(Math.random()*.6)+'s';
+    $('phone').appendChild(s); setTimeout(()=>s.remove(),2200); }
+  const box=$('choices2'); box.innerHTML='';
+  const b=document.createElement('button'); b.className='btn'; b.textContent='▶ タイトルへ';
+  b.onclick=()=>{ show('title'); }; box.appendChild(b);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>見た目 見比べ：フラットベクター vs ドット絵</title>
+<style>
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html,body{ height:100%; background:#15171c; font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif; overflow:hidden; }
+  body{ display:flex; align-items:center; justify-content:center; }
+  #phone{ position:relative; width:100%; max-width:420px; height:100vh; max-height:880px; background:#000; overflow:hidden; }
+  @media(min-width:440px){ #phone{ border-radius:32px; height:880px; } }
+
+  #stage{ position:absolute; inset:0; }
+  /* 切り替えタブ */
+  #tabs{ position:absolute; top:0; left:0; right:0; z-index:30; display:flex; }
+  #tabs button{ flex:1; padding:12px 0; border:none; font-size:14px; font-weight:bold; cursor:pointer;
+    background:rgba(20,24,30,.85); color:#9aa4ad; }
+  #tabs button.on{ background:#ff8a5c; color:#fff; }
+  #cap{ position:absolute; top:46px; left:0; right:0; z-index:30; text-align:center; color:#fff; font-size:11px;
+    background:rgba(0,0,0,.25); padding:4px; }
+
+  /* 共通：空 */
+  .sky{ position:absolute; inset:0; background:linear-gradient(180deg,#ffe1ad,#ffb56b 42%,#ff8a5c 70%,#e06a55); }
+  .ground{ position:absolute; left:0; right:0; bottom:0; height:26%; }
+
+  /* メッセージ窓（UIは共通） */
+  #msg{ position:absolute; left:12px; right:12px; bottom:16px; z-index:20; }
+  .nm{ display:inline-block; background:linear-gradient(135deg,#3f7bc4,#2c5a96); color:#fff; padding:4px 14px;
+    border-radius:10px 10px 0 0; font-size:13px; font-weight:bold; margin-left:6px; }
+  .box{ background:rgba(20,24,30,.94); border:1px solid rgba(255,255,255,.12); border-radius:0 14px 14px 14px;
+    padding:13px 15px; color:#f4f4f4; font-size:14px; line-height:1.6; min-height:64px; box-shadow:0 6px 20px rgba(0,0,0,.4); }
+
+  /* ベクター層 */
+  #vec{ position:absolute; inset:0; }
+  #vec .shopv{ position:absolute; bottom:26%; }
+  #vec svg{ display:block; }
+  .vlabel{ position:absolute; background:#3a2b22; color:#ffe; font-size:11px; padding:2px 8px; border-radius:6px; }
+
+  /* ドット層（canvas） */
+  #pixwrap{ position:absolute; inset:0; }
+  #pix{ position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; image-rendering:crisp-edges; }
+
+  .hidden{ display:none !important; }
+  .charname{ position:absolute; font-size:11px; color:#fff; background:rgba(0,0,0,.35); padding:2px 7px; border-radius:8px; z-index:10; }
+</style>
+</head>
+<body>
+<div id="phone">
+  <div id="stage"></div>
+
+  <!-- ===== ベクター ===== -->
+  <div id="vec">
+    <div class="sky"></div>
+    <!-- 太陽 -->
+    <svg style="position:absolute;left:50%;top:14%;transform:translateX(-50%)" width="120" height="120">
+      <circle cx="60" cy="60" r="46" fill="#fff2cf"/><circle cx="60" cy="60" r="60" fill="#ffd27a" opacity=".35"/>
+    </svg>
+    <!-- 商店街（フラット） -->
+    <div class="shopv" style="left:0;right:0;height:200px;">
+      <svg width="100%" height="200" viewBox="0 0 420 200" preserveAspectRatio="xMidYMax meet">
+        <!-- 建物 -->
+        <rect x="6"  y="60" width="120" height="120" rx="6" fill="#e8c98a"/>
+        <rect x="140" y="48" width="130" height="132" rx="6" fill="#d3a76f"/>
+        <rect x="286" y="64" width="128" height="116" rx="6" fill="#c79f87"/>
+        <!-- 屋根 -->
+        <rect x="0"  y="52" width="132" height="14" rx="4" fill="#b56a4a"/>
+        <rect x="134" y="40" width="142" height="14" rx="4" fill="#9c5740"/>
+        <rect x="280" y="56" width="140" height="14" rx="4" fill="#a86a52"/>
+        <!-- 日よけ（ストライプ） -->
+        <g>
+          <rect x="150" y="96" width="110" height="16" fill="#e85a5a"/>
+          <rect x="150" y="96" width="18" height="16" fill="#fff"/><rect x="186" y="96" width="18" height="16" fill="#fff"/>
+          <rect x="222" y="96" width="18" height="16" fill="#fff"/>
+        </g>
+        <!-- 窓・扉 -->
+        <rect x="30" y="92" width="70" height="44" rx="4" fill="#fff6e2"/>
+        <rect x="186" y="120" width="40" height="60" rx="3" fill="#5b4636"/>
+        <rect x="320" y="96" width="62" height="44" rx="4" fill="#fdf0d8"/>
+        <!-- 看板 -->
+        <rect x="40" y="70" width="60" height="16" rx="5" fill="#3a2b22"/>
+        <text x="70" y="82" font-size="10" fill="#ffe" text-anchor="middle">パンのいえ</text>
+      </svg>
+    </div>
+    <!-- 地面 -->
+    <div class="ground" style="background:linear-gradient(180deg,#caa06f,#b07f4f)"></div>
+
+    <!-- 青太（フラットベクター） -->
+    <div style="position:absolute; left:24%; bottom:24%; transform:translateX(-50%)">
+      <svg width="118" height="190" viewBox="0 0 118 190">
+        <ellipse cx="59" cy="184" rx="34" ry="7" fill="rgba(0,0,0,.18)"/>
+        <!-- 脚 -->
+        <rect x="40" y="120" width="16" height="52" rx="7" fill="#2c3a52"/>
+        <rect x="62" y="120" width="16" height="52" rx="7" fill="#2c3a52"/>
+        <rect x="36" y="166" width="24" height="12" rx="5" fill="#26303f"/>
+        <rect x="58" y="166" width="24" height="12" rx="5" fill="#26303f"/>
+        <!-- 体（ジャケット） -->
+        <path d="M32 78 Q59 66 86 78 L92 128 Q59 138 26 128 Z" fill="#3f7bc4"/>
+        <path d="M50 72 H68 V96 Q59 102 50 96 Z" fill="#eaf2fb"/>
+        <!-- 腕 -->
+        <rect x="22" y="80" width="15" height="44" rx="7" fill="#3a6fb0"/>
+        <rect x="81" y="80" width="15" height="44" rx="7" fill="#3a6fb0"/>
+        <!-- 首・顔 -->
+        <rect x="52" y="58" width="14" height="12" fill="#ffd9b3"/>
+        <circle cx="59" cy="44" r="26" fill="#ffe0c0"/>
+        <!-- 髪 -->
+        <path d="M33 44 Q30 14 59 13 Q88 14 85 44 Q80 30 59 30 Q38 30 33 44 Z" fill="#3a6fb0"/>
+        <path d="M59 13 Q72 16 78 30 L66 28 Z" fill="#2f5f9c"/>
+        <!-- 目・口 -->
+        <circle cx="49" cy="46" r="3.2" fill="#27384f"/><circle cx="69" cy="46" r="3.2" fill="#27384f"/>
+        <path d="M52 55 Q59 60 66 55" stroke="#b5765a" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <circle cx="44" cy="52" r="3" fill="#ffb0a0" opacity=".5"/><circle cx="74" cy="52" r="3" fill="#ffb0a0" opacity=".5"/>
+      </svg>
+      <div class="charname" style="left:50%; bottom:-2px; transform:translateX(-50%)">明智 青太</div>
+    </div>
+
+    <!-- 紅音（フラットベクター） -->
+    <div style="position:absolute; left:70%; bottom:24%; transform:translateX(-50%)">
+      <svg width="118" height="188" viewBox="0 0 118 188">
+        <ellipse cx="59" cy="182" rx="32" ry="7" fill="rgba(0,0,0,.18)"/>
+        <rect x="48" y="122" width="14" height="50" rx="6" fill="#e7c9a0"/>
+        <rect x="58" y="122" width="14" height="50" rx="6" fill="#e7c9a0"/>
+        <rect x="44" y="166" width="22" height="11" rx="5" fill="#b06a64"/>
+        <rect x="56" y="166" width="22" height="11" rx="5" fill="#b06a64"/>
+        <!-- スカート/体 -->
+        <path d="M34 80 Q59 70 84 80 L90 126 Q59 136 28 126 Z" fill="#e0607a"/>
+        <path d="M40 78 Q59 70 78 78 L80 104 Q59 110 38 104 Z" fill="#f6ead8"/>
+        <rect x="22" y="82" width="15" height="42" rx="7" fill="#d4566e"/>
+        <rect x="81" y="82" width="15" height="42" rx="7" fill="#d4566e"/>
+        <rect x="52" y="60" width="14" height="12" fill="#ffd9b3"/>
+        <circle cx="59" cy="46" r="26" fill="#ffe0c0"/>
+        <!-- 髪（オレンジ系・少し長め） -->
+        <path d="M31 50 Q28 14 59 13 Q90 14 87 50 Q92 70 80 82 L78 50 Q74 34 59 34 Q44 34 40 50 L38 82 Q26 70 31 50 Z" fill="#ef9a4e"/>
+        <rect x="44" y="22" width="10" height="6" rx="3" fill="#e0607a"/> <!-- 髪どめ -->
+        <circle cx="49" cy="48" r="3.2" fill="#5a3b2a"/><circle cx="69" cy="48" r="3.2" fill="#5a3b2a"/>
+        <path d="M53 56 Q59 60 65 56" stroke="#c07a5a" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <circle cx="45" cy="53" r="3.2" fill="#ff9a9a" opacity=".55"/><circle cx="73" cy="53" r="3.2" fill="#ff9a9a" opacity=".55"/>
+      </svg>
+      <div class="charname" style="left:50%; bottom:-2px; transform:translateX(-50%)">栗栖 紅音</div>
+    </div>
+  </div>
+
+  <!-- ===== ドット絵 ===== -->
+  <div id="pixwrap" class="hidden">
+    <canvas id="pix" width="210" height="440"></canvas>
+  </div>
+
+  <!-- 共通UI：メッセージ窓 -->
+  <div id="msg">
+    <div class="nm">明智 青太</div>
+    <div class="box">……ここ、初めてのはずなのに。なんか、知ってる感じがする。<br>（同じセリフ・同じUIで、絵だけ見比べてください）</div>
+  </div>
+
+  <!-- タブ -->
+  <div id="tabs">
+    <button id="tabV" class="on" onclick="setMode('v')">フラットベクター</button>
+    <button id="tabP" onclick="setMode('p')">ドット絵</button>
+  </div>
+  <div id="cap">同じ場面・同じUIで、絵のテイストだけ切り替え</div>
+</div>
+
+<script>
+function setMode(m){
+  const v=m==='v';
+  document.getElementById('vec').classList.toggle('hidden',!v);
+  document.getElementById('pixwrap').classList.toggle('hidden',v);
+  document.getElementById('tabV').classList.toggle('on',v);
+  document.getElementById('tabP').classList.toggle('on',!v);
+  if(!v) drawPixel();
+}
+
+// ===== ドット絵：低解像度キャンバスにブロックで描画 =====
+const cv=document.getElementById('pix'), cx=cv.getContext('2d');
+function px(x,y,w,h,c){ cx.fillStyle=c; cx.fillRect(x,y,w,h); }
+function drawPixel(){
+  const W=cv.width, H=cv.height; cx.clearRect(0,0,W,H); cx.imageSmoothingEnabled=false;
+  // 空（バンドでグラデ風）
+  const sky=['#ffe1ad','#ffd093','#ffb877','#ff9d63','#f07e57','#df6a52'];
+  for(let i=0;i<sky.length;i++) px(0, i*22, W, 22, sky[i]);
+  // 太陽（ブロック円）
+  px(96,40,18,18,'#fff3cf'); px(92,44,26,10,'#fff3cf'); px(100,36,10,26,'#fff3cf');
+  // 遠景の屋根
+  for(let i=0;i<8;i++){ px(i*28, 150, 22, 26, i%2?'#c98a6a':'#b87a5c'); }
+  // 建物
+  px(4,150,70,150,'#e8c98a'); px(78,138,64,162,'#d3a76f'); px(146,152,60,148,'#c79f87');
+  px(4,144,70,8,'#b56a4a'); px(78,132,64,8,'#9c5740'); px(146,146,60,8,'#a86a52');
+  // 日よけストライプ
+  for(let i=0;i<8;i++) px(80+i*8,176,8,10, i%2?'#e85a5a':'#fff');
+  // 窓・扉
+  px(20,176,38,28,'#fff6e2'); px(96,212,28,40,'#5b4636'); px(158,176,36,28,'#fdf0d8');
+  // 看板
+  px(22,158,40,12,'#3a2b22');
+  // 地面
+  px(0,300,W,140,'#caa06f'); px(0,300,W,6,'#b07f4f');
+
+  // 青太（ドット）
+  drawAota(40,250);
+  // 紅音（ドット）
+  drawAkane(132,252);
+
+  // 名前ラベル（キャンバス上に小さく）
+  cx.fillStyle='rgba(0,0,0,.4)'; cx.fillRect(34,318,52,12); cx.fillRect(126,320,52,12);
+  cx.fillStyle='#fff'; cx.font='9px sans-serif'; cx.fillText('明智 青太',36,327); cx.fillText('栗栖 紅音',128,329);
+}
+// 青太 ブロックスプライト
+function drawAota(ox,oy){
+  const HAIR='#3a6fb0',HAIR2='#2f5f9c',SK='#ffe0c0',EYE='#27384f',J='#3f7bc4',J2='#3a6fb0',SH='#eaf2fb',P='#2c3a52',SHO='#26303f';
+  // 影
+  cx.fillStyle='rgba(0,0,0,.18)'; cx.fillRect(ox-2,oy+66,44,5);
+  // 脚・靴
+  px(ox+8,oy+44,8,20,P); px(ox+22,oy+44,8,20,P); px(ox+6,oy+62,12,5,SHO); px(ox+20,oy+62,12,5,SHO);
+  // 体
+  px(ox+2,oy+22,34,26,J); px(ox+15,oy+22,8,18,SH);
+  px(ox-2,oy+24,8,18,J2); px(ox+34,oy+24,8,18,J2); // 腕
+  // 首・顔
+  px(ox+14,oy+16,10,8,SK); px(ox+6,oy-8,26,26,SK);
+  // 髪
+  px(ox+4,oy-14,30,10,HAIR); px(ox+2,oy-8,8,14,HAIR); px(ox+28,oy-8,8,14,HAIR); px(ox+24,oy-12,10,6,HAIR2);
+  // 目・口
+  px(ox+12,oy+0,4,5,EYE); px(ox+24,oy+0,4,5,EYE);
+  px(ox+15,oy+10,10,2,'#b5765a');
+}
+// 紅音 ブロックスプライト
+function drawAkane(ox,oy){
+  const HAIR='#ef9a4e',HAIR2='#e0607a',SK='#ffe0c0',EYE='#5a3b2a',T='#e0607a',SH='#f6ead8',LEG='#e7c9a0',SHO='#b06a64';
+  cx.fillStyle='rgba(0,0,0,.18)'; cx.fillRect(ox-2,oy+64,42,5);
+  px(ox+10,oy+44,7,18,LEG); px(ox+22,oy+44,7,18,LEG); px(ox+7,oy+60,12,5,SHO); px(ox+20,oy+60,12,5,SHO);
+  px(ox+2,oy+22,34,24,T); px(ox+13,oy+22,10,14,SH);
+  px(ox-2,oy+24,8,16,'#d4566e'); px(ox+34,oy+24,8,16,'#d4566e');
+  px(ox+14,oy+16,10,8,SK); px(ox+6,oy-8,26,26,SK);
+  // 髪（長め）
+  px(ox+2,oy-14,32,10,HAIR); px(ox-2,oy-6,8,26,HAIR); px(ox+32,oy-6,8,26,HAIR); px(ox+12,oy-16,8,4,HAIR2);
+  px(ox+12,oy+0,4,5,EYE); px(ox+24,oy+0,4,5,EYE);
+  px(ox+15,oy+10,10,2,'#c07a5a');
+  // ほっぺ
+  px(ox+8,oy+5,4,3,'#ff9a9a'); px(ox+28,oy+5,4,3,'#ff9a9a');
+}
+</script>
+</body>
+</html>
