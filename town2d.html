@@ -40,22 +40,22 @@ load('ground','assets/town/ground.png');
 load('down','assets/aota_td/down.png');   // 下向き（正面立ち絵）
 load('up','assets/aota_td/up.png');        // 上向き（背面）
 const SIDE=[]; for(let i=0;i<7;i++) SIDE.push(load('side'+i,'assets/aota_td/side_'+i+'.png')); // 横歩き7コマ
-// 建物（見下ろしの仮：既存の正面ショップ画像をビルボードとして立てる）
-['bakery','book','stationery','karaage','flower'].forEach(n=>load(n,'assets/town/'+n+'.png'));
+// 建物（見下ろし用の絵）
+['bakery','book','stationery','karaage','flower'].forEach(n=>load(n,'assets/town_td/'+n+'.png'));
 
 // ---- ワールド定義 ----
-const WORLD={ w:1400, h:1000 };
-// 建物（当たり判定つき）。x,yは足元中心、w,hは判定サイズ、imgは看板画像、labelは名前
+const WORLD={ w:1800, h:1200 };
+// 建物（当たり判定つき）。x,yは足元中心、w,hは判定（足元の壁帯）、imgは絵、labelは名前
 const BUILDINGS=[
-  {x:300, y:250, w:150, h:90, img:'bakery',     label:'パンのいえ'},
-  {x:600, y:230, w:150, h:90, img:'book',       label:'ほん屋'},
-  {x:900, y:250, w:150, h:90, img:'stationery', label:'星野文具店'},
-  {x:420, y:640, w:150, h:90, img:'karaage',    label:'からあげ繁盛店'},
-  {x:820, y:660, w:150, h:90, img:'flower',     label:'花屋'},
+  {x:340,  y:300, w:200, h:70, img:'bakery',     label:'パンのいえ'},
+  {x:820,  y:280, w:200, h:70, img:'book',       label:'ほん屋'},
+  {x:1300, y:300, w:200, h:70, img:'stationery', label:'星野文具店'},
+  {x:520,  y:820, w:200, h:70, img:'karaage',    label:'からあげ繁盛店'},
+  {x:1120, y:840, w:200, h:70, img:'flower',     label:'花屋'},
 ];
 
 // ---- プレイヤー ----
-const P={ x:700, y:480, tx:700, ty:480, moving:false, dir:'down', speed:0.16, bob:0, t:0, stuck:0 };
+const P={ x:900, y:560, tx:900, ty:560, moving:false, dir:'down', speed:0.16, bob:0, t:0, stuck:0 };
 
 // ---- 当たり判定 ----
 function blocked(x, y){
@@ -142,15 +142,12 @@ function drawGround(){
 
 function drawBuilding(b){
   const img=IMG[b.img];
-  const dw=b.w*1.5, dh=dw* (img.complete&&img.naturalWidth? img.naturalHeight/img.naturalWidth : 1.2);
-  const sx=b.x-cam.x-dw/2, sy=(b.y-cam.y)-dh+20;
-  if(img.complete&&img.naturalWidth) ctx.drawImage(img, sx, sy, dw, dh);
-  // 看板
-  ctx.font='bold 13px sans-serif'; ctx.textAlign='center';
-  const tw=ctx.measureText(b.label).width;
-  ctx.fillStyle='rgba(40,30,24,.72)';
-  ctx.fillRect(b.x-cam.x-tw/2-8, sy-22, tw+16, 20);
-  ctx.fillStyle='#ffe'; ctx.fillText(b.label, b.x-cam.x, sy-8);
+  if(!img.complete||!img.naturalWidth) return;
+  // 見下ろし絵：足元(b.y)に建物の下辺を合わせて置く
+  const dw=b.w*1.7, dh=dw*img.naturalHeight/img.naturalWidth;
+  const sx=b.x-cam.x-dw/2, sy=(b.y-cam.y)+16-dh;
+  ctx.drawImage(img, sx, sy, dw, dh);
+  // 看板は常時表示しない。近づくと画面下に「▲ 店名」が出る（updateNear）。
 }
 
 function drawPlayer(bobY){
