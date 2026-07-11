@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>青ノ探偵 トップダウン試作</title>
+<style>
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; height:100dvh; background:#111418; overflow:hidden;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif; }
+  body{ display:flex; align-items:center; justify-content:center; }
+  #stage{ position:relative; width:100%; max-width:420px; height:100vh; height:100dvh; max-height:900px;
+    background:#1a1410; overflow:hidden; }
+  @media(min-width:440px){ #stage{ border-radius:32px; } }
+  canvas{ display:block; width:100%; height:100%; image-rendering:pixelated; }
+  #hint{ position:absolute; top:calc(12px + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%);
+    background:rgba(40,30,24,.62); color:#fff; font-size:12px; font-weight:bold; padding:7px 14px; border-radius:14px;
+    white-space:nowrap; pointer-events:none; animation:bob 2s ease-in-out infinite; }
+  @keyframes bob{ 50%{ transform:translateX(-50%) translateY(-3px); } }
+  #near{ position:absolute; bottom:calc(20px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%);
+    background:rgba(20,16,26,.8); color:#ffe08a; border:1px solid rgba(255,224,138,.5); font-size:14px; font-weight:bold;
+    padding:10px 20px; border-radius:16px; display:none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv"></canvas>
+  <div id="hint">🖐 歩きたい場所をタップ（斜めもOK）</div>
+  <div id="near"></div>
+</div>
+<script>
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+ctx.imageSmoothingEnabled=false;
+
+// ---- 素材読み込み ----
+const IMG={};
+function load(name, src){ const i=new Image(); i.src=src; IMG[name]=i; return i; }
+load('ground','assets/town/ground.png');
+load('down','assets/aota/idle_front.png');   // 下向き（正面）
+load('up','assets/aota/idle_side.png');       // ※後ろ向きは後で差し替え。仮に横向きを使う
+load('back','assets/town/train.png');         // dummy preload
+load('side','assets/aota/idle_side.png');     // 横向き（右基準）
+// 建物（見下ろしの仮：既存の正面ショップ画像をビルボードとして立てる）
+['bakery','book','stationery','karaage','flower'].forEach(n=>load(n,'assets/town/'+n+'.png'));
+// 後ろ向きスプライト
+load('upimg','assets/town/roofs.png'); // dummy
+const backImg=new Image(); backImg.src='assets/aota/idle_side.png';
+
+// ---- ワールド定義 ----
+const WORLD={ w:1400, h:1000 };
+// 建物（当たり判定つき）。x,yは足元中心、w,hは判定サイズ、imgは看板画像、labelは名前
+const BUILDINGS=[
+  {x:300, y:250, w:150, h:90, img:'bakery',     label:'パンのいえ'},
+  {x:600, y:230, w:150, h:90, img:'book',       label:'ほん屋'},
+  {x:900, y:250, w:150, h:90, img:'stationery', label:'星野文具店'},
+  {x:420, y:640, w:150, h:90, img:'karaage',    label:'からあげ繁盛店'},
+  {x:820, y:660, w:150, h:90, img:'flower',     label:'花屋'},
+];
+
+// ---- プレイヤー ----
+const P={ x:700, y:480, tx:700, ty:480, moving:false, dir:'down', speed:0.16, bob:0, t:0, stuck:0 };
+
+// ---- 当たり判定 ----
+function blocked(x, y){
+  if(x<30||x>WORLD.w-30||y<40||y>WORLD.h-20) return true;
+  for(const b of BUILDINGS){
+    // 建物の足元付近を壁に（少し薄めの帯）
+    if(Math.abs(x-b.x)<b.w/2 && y<b.y+10 && y>b.y-b.h*0.5) return true;
+  }
+  return false;
+}
+
+// ---- タップで目的地 ----
+function toWorld(cx, cy){
+  const r=cv.getBoundingClientRect();
+  const sx=(cx-r.left)/r.width*cv.width;
+  const sy=(cy-r.top)/r.height*cv.height;
+  return { x:cam.x+sx, y:cam.y+sy };
+}
+cv.addEventListener('pointerdown',(e)=>{
+  const w=toWorld(e.clientX, e.clientY);
+  P.tx=Math.max(30,Math.min(WORLD.w-30,w.x));
+  P.ty=Math.max(40,Math.min(WORLD.h-20,w.y));
+  P.moving=true;
+  document.getElementById('hint').style.display='none';
+});
+
+// ---- カメラ ----
+const cam={ x:0, y:0 };
+
+// ---- ループ ----
+let last=null;
+function frame(ts){
+  if(last==null)last=ts; const dt=Math.min(40,ts-last); last=ts;
+  // 移動
+  if(P.moving){
+    const dx=P.tx-P.x, dy=P.ty-P.y, d=Math.hypot(dx,dy);
+    const step=P.speed*dt;
+    if(d<=step){ P.x=P.tx; P.y=P.ty; P.moving=false; }
+    else {
+      const ox=P.x, oy=P.y;
+      const nx=P.x+dx/d*step, ny=P.y+dy/d*step;
+      // 軸ごとに当たり判定（壁に沿って滑る。目的地はキャンセルしない）
+      if(!blocked(nx,P.y)) P.x=nx;
+      if(!blocked(P.x,ny)) P.y=ny;
+      P.bob+=dt;
+      // 向き（動いてる方向の主成分）
+      if(Math.abs(dx)>Math.abs(dy)) P.dir=dx<0?'left':'right';
+      else P.dir=dy<0?'up':'down';
+      // 進めなくなったら（壁に完全に詰まったら）停止
+      if(Math.hypot(P.x-ox, P.y-oy) < 0.4){ if(++P.stuck>6){ P.moving=false; P.stuck=0; } }
+      else P.stuck=0;
+    }
+  }
+  const bobY=P.moving?Math.sin(P.bob/90)*3:0;
+
+  // カメラ追従
+  cam.x=Math.max(0,Math.min(WORLD.w-cv.width, P.x-cv.width/2));
+  cam.y=Math.max(0,Math.min(WORLD.h-cv.height, P.y-cv.height/2));
+
+  // 描画
+  ctx.clearRect(0,0,cv.width,cv.height);
+  drawGround();
+  // y順で建物とプレイヤーを重ねる（奥→手前）
+  const drawables=[...BUILDINGS.map(b=>({type:'b', y:b.y, b})), {type:'p', y:P.y}];
+  drawables.sort((a,b)=>a.y-b.y);
+  for(const d of drawables){
+    if(d.type==='b') drawBuilding(d.b);
+    else drawPlayer(bobY);
+  }
+  updateNear();
+  requestAnimationFrame(frame);
+}
+
+function drawGround(){
+  const g=IMG.ground; if(!g.complete||!g.naturalWidth){ return; }
+  const ts=96; // タイル表示サイズ
+  const startX=Math.floor(cam.x/ts)*ts, startY=Math.floor(cam.y/ts)*ts;
+  for(let y=startY; y<cam.y+cv.height; y+=ts){
+    for(let x=startX; x<cam.x+cv.width; x+=ts){
+      ctx.drawImage(g, 0,0,g.naturalWidth,Math.floor(g.naturalHeight*0.5), x-cam.x, y-cam.y, ts, ts);
+    }
+  }
+}
+
+function drawBuilding(b){
+  const img=IMG[b.img];
+  const dw=b.w*1.5, dh=dw* (img.complete&&img.naturalWidth? img.naturalHeight/img.naturalWidth : 1.2);
+  const sx=b.x-cam.x-dw/2, sy=(b.y-cam.y)-dh+20;
+  if(img.complete&&img.naturalWidth) ctx.drawImage(img, sx, sy, dw, dh);
+  // 看板
+  ctx.font='bold 13px sans-serif'; ctx.textAlign='center';
+  const tw=ctx.measureText(b.label).width;
+  ctx.fillStyle='rgba(40,30,24,.72)';
+  ctx.fillRect(b.x-cam.x-tw/2-8, sy-22, tw+16, 20);
+  ctx.fillStyle='#ffe'; ctx.fillText(b.label, b.x-cam.x, sy-8);
+}
+
+function drawPlayer(bobY){
+  let key='down';
+  if(P.dir==='up') key='side';   // 仮：後ろ向き未生成のため
+  else if(P.dir==='down') key='down';
+  else key='side';
+  const img=IMG[key]; if(!img.complete||!img.naturalWidth) return;
+  const dh=110, dw=dh*img.naturalWidth/img.naturalHeight;
+  const flip=(P.dir==='left');
+  const sx=P.x-cam.x, sy=P.y-cam.y+bobY;
+  // 影
+  ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath();
+  ctx.ellipse(sx, P.y-cam.y+2, dw*0.28, 8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.save();
+  ctx.translate(sx, sy);
+  if(flip) ctx.scale(-1,1);
+  ctx.drawImage(img, -dw/2, -dh, dw, dh);
+  ctx.restore();
+}
+
+// ---- 近くの建物表示 ----
+const nearEl=document.getElementById('near');
+function updateNear(){
+  let hit=null;
+  for(const b of BUILDINGS){ if(Math.abs(P.x-b.x)<90 && Math.abs(P.y-b.y)<110){ hit=b; break; } }
+  if(hit){ nearEl.textContent='▲ '+hit.label; nearEl.style.display='block'; }
+  else nearEl.style.display='none';
+}
+
+// ---- リサイズ ----
+function resize(){
+  const r=cv.getBoundingClientRect();
+  cv.width=Math.round(r.width); cv.height=Math.round(r.height);
+  ctx.imageSmoothingEnabled=false;
+}
+window.addEventListener('resize',resize);
+resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
