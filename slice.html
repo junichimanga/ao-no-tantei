@@ -37,6 +37,15 @@
   .btn:active{ transform:scale(.97); } .btn.clue{ border-left:5px solid #4a90d9; text-align:left; }
 
   /* ===== タイトル ===== */
+  /* コールドオープン（電車） */
+  #train{ background:#0a0a12; }
+  #train .trainbg{ position:absolute; inset:0; background:url(assets/town/train.png) center/cover no-repeat; image-rendering:pixelated; }
+  #trainAota{ position:absolute; left:50%; bottom:calc(18% + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); width:64%; max-width:300px; z-index:2; }
+  #trainAota img{ width:100%; image-rendering:pixelated; filter:drop-shadow(0 8px 20px rgba(0,0,0,.5)); }
+  #trainVig{ position:absolute; inset:0; z-index:3; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 42%, rgba(0,0,0,0) 45%, rgba(6,6,14,.72) 100%); }
+  #train.flashwhite .trainbg{ filter:brightness(2.6) saturate(.3); transition:filter .12s; }
+
   #title { background:url(assets/town/title_keyart.png) center top/cover no-repeat; }
   #title .c{ display:none; } /* ロゴ・キャッチコピーはキーアートに焼き込み済み */
   #title{ cursor:pointer; }
@@ -157,8 +166,15 @@
 <body>
 <div id="phone">
 
+  <!-- コールドオープン（電車） -->
+  <div id="train" class="layer">
+    <div class="trainbg"></div>
+    <div id="trainAota"><img src="assets/busts/aota_base.png" alt=""></div>
+    <div id="trainVig"></div>
+  </div>
+
   <!-- タイトル -->
-  <div id="title" class="layer" onclick="playBgm('town');toExplore(true)">
+  <div id="title" class="layer" onclick="startColdOpen()">
     <div class="c"><h1>青ノ探偵</h1><div class="s">― 橙ヶ丘商店街のナゾ ―</div>
       <div class="e">町を歩く → 事件 → 推理 → 解決</div></div>
     <div class="start"><div class="tap">▶ タップではじめる</div></div>
@@ -183,8 +199,6 @@
     <div id="cutin"><div class="band"></div><div class="lines"></div><img id="cutinImg" src="assets/aota/idle_front.png" alt=""><div class="wflash" id="cutinFlash"></div></div>
     <div id="obj">🎯 ノートを買いに、星野文具店へ行こう（画面タップで歩く）</div>
     <div id="ph"></div>
-    <div id="busts"><img id="bustL" alt=""><img id="bustR" alt=""></div>
-    <div id="etalk" class="msgbox"><div id="enm" class="nm aota">明智 青太</div><div id="ebox" class="box"><span id="ett"></span><span id="ecue" class="cue">▼</span></div></div>
   </div>
 
   <!-- 事件・推理 -->
@@ -204,6 +218,10 @@
       <p id="rtext"></p></div>
     <div class="start"><button class="btn" onclick="location.reload()">▶ もう一度</button></div>
   </div>
+
+  <!-- 会話UI（全レイヤー共通・最前面） -->
+  <div id="busts"><img id="bustL" alt=""><img id="bustR" alt=""></div>
+  <div id="etalk" class="msgbox"><div id="enm" class="nm aota">明智 青太</div><div id="ebox" class="box"><span id="ett"></span><span id="ecue" class="cue">▼</span></div></div>
 
   <div id="flash"></div>
   <div id="fade"></div>
@@ -392,6 +410,12 @@ Object.values(BUST).forEach(m=>Object.values(m).forEach(n=>{ const im=new Image(
 const BUST_SIDE={ aota:'bustL', akane:'bustR' };
 function showBusts(ln){
   if(prologueLive){ hideBusts(); return; } // プロローグは子ども時代なので立ち絵を出さない
+  if($('train').classList.contains('on')){ // コールドオープンは中央の一枚絵で表情を反映
+    hideBusts();
+    if(ln.c==='aota'){ const face=(ln.f && BUST.aota[ln.f])?ln.f:'base';
+      $('trainAota').querySelector('img').src='assets/busts/'+BUST.aota[face]+'.png'; }
+    return;
+  }
   let any=false;
   ['aota','akane'].forEach(ch=>{
     const img=$(BUST_SIDE[ch]);
@@ -414,6 +438,7 @@ function renderE(ln){ const nm=$('enm'); nm.className='nm';
   else if(ln.c==='akane'){nm.classList.add('akane');nm.textContent='栗栖 紅音';}
   else nm.textContent=ln.n||'';
   nm.style.display=(ln.c==='mono')?'none':'inline-block'; $('ebox').classList.toggle('mono',ln.c==='mono');
+  if(ln.flash){ const t=$('train'); t.classList.add('flashwhite'); setTimeout(()=>t.classList.remove('flashwhite'),160); }
   showBusts(ln); typeE(ln.t); }
 function typeE(t){ const s=$('ett'),c=$('ecue'); c.style.display='none'; etyping=true; s.textContent=''; let i=0; clearInterval(etT);
   etT=setInterval(()=>{ s.textContent=t.slice(0,++i); if(i>=t.length){clearInterval(etT);etyping=false;c.style.display='block';} },18); }
@@ -433,8 +458,31 @@ $('etalk').addEventListener('click',()=>{
   }
 });
 
+/* ===================== コールドオープン（電車の夢→目覚め→万年筆） ===================== */
+const COLD_OPEN=[
+  {c:"mono", t:"― 子どもの、笑い声。遠い。小さな手が、こちらに伸びてくる。"},
+  {c:"mono", t:"「――くん、こっち！」　赤い、夕日。"},
+  {c:"mono", t:"そして――その光景を、ぐにゃりと、真っ黒な影が、塗りつぶす。", flash:true},
+  {c:"aota", f:"odoroki", t:"……っ！"},
+  {c:"mono", t:"がたん、と電車が揺れる。窓の外、見たことのない、田舎の風景。"},
+  {c:"aota", f:"base", t:"……夢。今の、誰の声……？"},
+  {c:"aota", f:"shinken", t:"（思い出せない。……僕には、ここに来る前の記憶が、ない）"},
+  {c:"aota", f:"base", t:"（『あの人』からの手紙に、これが入っていた。……古い、万年筆）"},
+  {c:"aota", f:"base", t:"（軸の刻印を、地図で探した。星野文具店。――橙ヶ丘。だから僕は、この町を選んだ）"},
+  {c:"mono", t:"車内アナウンス「まもなく、橙ヶ丘。お降りのお客様は――」"},
+  {c:"aota", f:"shinken", t:"（万年筆を、ぎゅっと握る）……ここが。僕の、選んだ町"},
+];
+let coStarted=false;
+function startColdOpen(){
+  if(coStarted) return; coStarted=true;
+  playBgm('prologue', 0.5); // 夕暮れの帰り道（記憶と現在をつなぐ曲）
+  layer('train');
+  eMode='overlay'; odl=COLD_OPEN; oi=0; odone=()=>{ playBgm('town'); toExplore(true); };
+  etalking=true; $('etalk').classList.add('show'); overlayStep();
+}
+
 function toExplore(first){ layer('explore'); exploreLive=true; if(first){ posX=120; targetX=120; }
-  if(first){ setTimeout(()=>{ talkE({lines:[{c:"aota",t:"（転校してきて、まだ三日。……この町、なんだか、初めてな気がしない）"},{c:"aota",t:"まずは、ノートを買いに、星野文具店へ行こう"}]}); },400); } }
+  if(first){ setTimeout(()=>{ talkE({lines:[{c:"aota",f:"base",t:"（転校してきて、まだ三日。……この町、なんだか、初めてな気がしない）"},{c:"aota",f:"nihera",t:"まずは、ノートを買いに、星野文具店へ行こう"}]}); },400); } }
 
 /* ===================== プロローグ「なくした色」 ===================== */
 let prologueLive=false, pCatch=0, pgirlX=0, pDraining=false;
