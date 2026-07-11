@@ -38,7 +38,7 @@ const IMG={};
 function load(name, src){ const i=new Image(); i.src=src; IMG[name]=i; return i; }
 load('ground','assets/town/ground.png');
 // 4方向スプライト（?v= はキャッシュ対策）
-const V='?v=2';
+const V='?v=3';
 load('down','assets/aota_td/down.png'+V); load('down_l','assets/aota_td/down_l.png'+V); load('down_r','assets/aota_td/down_r.png'+V);
 load('up','assets/aota_td/up.png'+V);     load('up_l','assets/aota_td/up_l.png'+V);     load('up_r','assets/aota_td/up_r.png'+V);
 for(let i=0;i<7;i++) load('side'+i,'assets/aota_td/side_'+i+'.png'+V); // 横歩き7コマ
