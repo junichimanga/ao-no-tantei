@@ -46,6 +46,13 @@
     background:radial-gradient(ellipse at 50% 42%, rgba(0,0,0,0) 45%, rgba(6,6,14,.72) 100%); }
   #train.flashwhite .trainbg{ filter:brightness(2.6) saturate(.3); transition:filter .12s; }
 
+  /* エピローグ（夕暮れの掛け合い）：町を背景に会話だけ見せる */
+  body.epilogue #aota, body.epilogue .npc, body.epilogue #obj, body.epilogue #ph,
+  body.epilogue #pskip, body.epilogue .shop .sg, body.epilogue #marker{ display:none !important; }
+  body.epilogue #eveningTint{ opacity:1; }
+  #eveningTint{ position:absolute; inset:0; z-index:23; pointer-events:none; opacity:0; transition:opacity 1.2s;
+    background:linear-gradient(180deg, rgba(60,26,40,.28), rgba(30,14,30,.5)); }
+
   #title { background:url(assets/town/title_keyart.png) center top/cover no-repeat; }
   #title .c{ display:none; } /* ロゴ・キャッチコピーはキーアートに焼き込み済み */
   #title{ cursor:pointer; }
@@ -194,6 +201,7 @@
       </div>
     </div>
     <div id="dark"></div>
+    <div id="eveningTint"></div>
     <div id="pskip">スキップ ▸</div>
     <div id="phint">🖐 タップかスワイプで、あの子を追いかけよう ➡</div>
     <div id="cutin"><div class="band"></div><div class="lines"></div><img id="cutinImg" src="assets/aota/idle_front.png" alt=""><div class="wflash" id="cutinFlash"></div></div>
@@ -723,11 +731,36 @@ function cutin(cb){ const c=$('scut'); c.classList.add('show');
 let pi=0;
 function playPost(){ playBgm('solve'); pi=0; postStep();
   $('smsg').onclick=()=>{ if(sTyping){clearInterval(sT);sTyping=false;$('stt').textContent=POST[pi-1].t;$('scue').style.display='block';return;} postStep(); }; }
-function postStep(){ if(pi>=POST.length){ setTimeout(goResult,400); return; } const ln=POST[pi]; sName(ln.c);
+function postStep(){ if(pi>=POST.length){ setTimeout(startEpilogue,400); return; } const ln=POST[pi]; sName(ln.c);
   if(ln.c==='aotaS'||ln.c==='aota')setSp('L',ln.c==='aotaS'?'aotaS':'aota'); else if(ln.c==='oku')setSp('R','oku'); else if(ln.c==='baa')setSp('L','baa');
   sType(ln.t, ln.c==='nar'); pi++; }
 
-function goResult(){ caseDone=true; playBgm('result'); layer('result');
+/* ===================== エピローグ（夕暮れ・二人の呼吸が合う） ===================== */
+const EPILOGUE=[
+  {c:'npc', n:'星野のおばあちゃん', t:'青太くん、ありがとうねえ。あんた……いい探偵さんに、なるよ'},
+  {c:'aota', f:'ehehe', t:'……いえ。当然のことを、したまでです'},
+  {c:'akane', f:'base', t:'（お……ちょっと、かっこいい）……ねえ、明智くん'},
+  {c:'aota', f:'base', t:'うん？'},
+  {c:'akane', f:'tere', t:'あなた、今日会ったばっかりだけど。……ちょっとだけ、見直した。さっきの、すごかった'},
+  {c:'aota', f:'nihera', t:'えへへ。……あ、じゃあ、お礼に、からあげ、おごってくれる？'},
+  {c:'akane', f:'ikari', t:'は!? なんでわたしが!'},
+  {c:'aota', f:'doya', t:'だって、ここからでも、におうから。……二軒どなりだし'},
+  {c:'akane', f:'jito', t:'（……ふっ）'},
+  {c:'akane', f:'base', t:'っ、ふふっ。なにそれ。朝からずっと、からあげのことしか言ってないじゃん、君'},
+  {c:'aota', f:'base', t:'うん。だって、それだけは、覚えてるから'},
+  {c:'mono', t:'二人、商店街を、並んで歩く。さっきまでより、少しだけ、距離が近い。'},
+  {c:'mono', t:'赤い夕日。――ほんの少しだけ、影が、二つ、重なって、見えた。'},
+];
+function startEpilogue(){
+  playBgm('result'); // 「放課後、探偵は笑う」
+  fadeTo(()=>{
+    layer('explore'); exploreLive=false; walking=false;
+    document.body.classList.add('epilogue');
+    talkOverlayE(EPILOGUE, ()=>{ document.body.classList.remove('epilogue'); goResult(); });
+  });
+}
+
+function goResult(){ caseDone=true; layer('result');
   $('rtext').innerHTML="星野文具店・盗難事件、解決。<br>でも――狙われた“古い写真”の謎。<br>静かな声の、黒い影。<br><br>青太の失くした記憶と、<br>何かがつながっている……？<br><br><b>つづく</b>";
   for(let k=0;k<16;k++){ const s=document.createElement('div'); s.className='sparkle'; s.textContent=k%3?'✦':'⭐'; s.style.left=(Math.random()*90)+'%'; s.style.top=(38+Math.random()*30)+'%'; s.style.color=['#ffd97a','#fff','#9bd0ff'][k%3]; s.style.animationDelay=(Math.random()*.6)+'s'; $('phone').appendChild(s); setTimeout(()=>s.remove(),2200); } }
 
