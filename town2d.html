@@ -37,9 +37,14 @@ ctx.imageSmoothingEnabled=false;
 const IMG={};
 function load(name, src){ const i=new Image(); i.src=src; IMG[name]=i; return i; }
 load('ground','assets/town/ground.png');
-load('down','assets/aota_td/down.png');   // 下向き（正面立ち絵）
-load('up','assets/aota_td/up.png');        // 上向き（背面）
-const SIDE=[]; for(let i=0;i<7;i++) SIDE.push(load('side'+i,'assets/aota_td/side_'+i+'.png')); // 横歩き7コマ
+// 4方向スプライト（?v= はキャッシュ対策）
+const V='?v=2';
+load('down','assets/aota_td/down.png'+V); load('down_l','assets/aota_td/down_l.png'+V); load('down_r','assets/aota_td/down_r.png'+V);
+load('up','assets/aota_td/up.png'+V);     load('up_l','assets/aota_td/up_l.png'+V);     load('up_r','assets/aota_td/up_r.png'+V);
+for(let i=0;i<7;i++) load('side'+i,'assets/aota_td/side_'+i+'.png'+V); // 横歩き7コマ
+// 縦歩きの4コマループ：立ち→左足→立ち→右足
+const DOWN_CYCLE=['down','down_l','down','down_r'];
+const UP_CYCLE=['up','up_l','up','up_r'];
 // 建物（見下ろし用の絵）
 ['bakery','book','stationery','karaage','flower'].forEach(n=>load(n,'assets/town_td/'+n+'.png'));
 
@@ -156,8 +161,11 @@ function drawPlayer(bobY){
     // 横：歩いてるときは7コマ、止まってるときは静止コマ
     const idx=P.moving ? Math.floor(P.bob/90)%7 : 0;
     img=IMG['side'+idx]; flip=(P.dir==='left');
-  } else if(P.dir==='up'){ img=IMG.up; }
-  else { img=IMG.down; }
+  } else if(P.dir==='up'){
+    const idx=P.moving ? Math.floor(P.bob/140)%4 : 0; img=IMG[UP_CYCLE[idx]];
+  } else {
+    const idx=P.moving ? Math.floor(P.bob/140)%4 : 0; img=IMG[DOWN_CYCLE[idx]];
+  }
   if(!img||!img.complete||!img.naturalWidth) return;
   const dh=110, dw=dh*img.naturalWidth/img.naturalHeight;
   const sx=P.x-cam.x, sy=P.y-cam.y+bobY;
