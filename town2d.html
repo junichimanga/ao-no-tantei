@@ -37,15 +37,11 @@ ctx.imageSmoothingEnabled=false;
 const IMG={};
 function load(name, src){ const i=new Image(); i.src=src; IMG[name]=i; return i; }
 load('ground','assets/town/ground.png');
-load('down','assets/aota/idle_front.png');   // 下向き（正面）
-load('up','assets/aota/idle_side.png');       // ※後ろ向きは後で差し替え。仮に横向きを使う
-load('back','assets/town/train.png');         // dummy preload
-load('side','assets/aota/idle_side.png');     // 横向き（右基準）
+load('down','assets/aota_td/down.png');   // 下向き（正面立ち絵）
+load('up','assets/aota_td/up.png');        // 上向き（背面）
+const SIDE=[]; for(let i=0;i<7;i++) SIDE.push(load('side'+i,'assets/aota_td/side_'+i+'.png')); // 横歩き7コマ
 // 建物（見下ろしの仮：既存の正面ショップ画像をビルボードとして立てる）
 ['bakery','book','stationery','karaage','flower'].forEach(n=>load(n,'assets/town/'+n+'.png'));
-// 後ろ向きスプライト
-load('upimg','assets/town/roofs.png'); // dummy
-const backImg=new Image(); backImg.src='assets/aota/idle_side.png';
 
 // ---- ワールド定義 ----
 const WORLD={ w:1400, h:1000 };
@@ -158,13 +154,15 @@ function drawBuilding(b){
 }
 
 function drawPlayer(bobY){
-  let key='down';
-  if(P.dir==='up') key='side';   // 仮：後ろ向き未生成のため
-  else if(P.dir==='down') key='down';
-  else key='side';
-  const img=IMG[key]; if(!img.complete||!img.naturalWidth) return;
+  let img, flip=false;
+  if(P.dir==='left'||P.dir==='right'){
+    // 横：歩いてるときは7コマ、止まってるときは静止コマ
+    const idx=P.moving ? Math.floor(P.bob/90)%7 : 0;
+    img=IMG['side'+idx]; flip=(P.dir==='left');
+  } else if(P.dir==='up'){ img=IMG.up; }
+  else { img=IMG.down; }
+  if(!img||!img.complete||!img.naturalWidth) return;
   const dh=110, dw=dh*img.naturalWidth/img.naturalHeight;
-  const flip=(P.dir==='left');
   const sx=P.x-cam.x, sy=P.y-cam.y+bobY;
   // 影
   ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath();
