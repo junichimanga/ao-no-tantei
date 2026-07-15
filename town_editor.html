@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>青ノ探偵 街編集ツール</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#101620;color:#eef4ff;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;overflow:hidden}
+  #app{display:grid;grid-template-columns:280px 1fr 320px;height:100%}
+  aside{background:#1a2330;border-right:1px solid #354255;padding:14px;overflow:auto}
+  #right{border-right:0;border-left:1px solid #354255}
+  h1{font-size:18px;color:#ffd27a;margin-bottom:10px}
+  h2{font-size:13px;color:#9fc3ef;margin:18px 0 8px}
+  p{font-size:12px;line-height:1.65;color:#b9c6d7}
+  button,input,select,textarea{font:inherit}
+  button{border:1px solid #6d7d93;background:#2a384b;color:#eef4ff;border-radius:9px;padding:8px 10px;font-weight:900;cursor:pointer}
+  button:hover,button.active{background:#d7a85b;color:#17202a;border-color:#ffe0a4}
+  .row{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+  .palette button{width:100%;margin:4px 0;text-align:left}
+  label{display:block;font-size:11px;color:#aebbd0;margin-top:9px;font-weight:900}
+  input,select,textarea{width:100%;background:#111923;color:#f5f1df;border:1px solid #405066;border-radius:8px;padding:7px;margin-top:4px}
+  textarea{height:170px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px}
+  #stageWrap{position:relative;overflow:hidden;background:#d7d0bd}
+  canvas{display:block;width:100%;height:100%;cursor:grab}
+  canvas.dragging{cursor:grabbing}
+  #toast{position:absolute;left:50%;top:18px;transform:translateX(-50%);background:rgba(14,19,29,.94);border:1px solid #e0b05e;color:#fff3c7;padding:9px 14px;border-radius:10px;font-size:12px;font-weight:900;opacity:0;pointer-events:none;transition:.2s}
+  #toast.show{opacity:1}
+  .mini{font-size:11px;color:#97a8be}
+  .chip{display:inline-block;border:1px solid #52647b;border-radius:999px;padding:3px 7px;margin:3px 2px;color:#c7d4e6;font-size:10px}
+  @media(max-width:900px){#app{grid-template-columns:1fr} aside{display:none} #right{display:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside>
+    <h1>青ノ探偵 街編集</h1>
+    <p>建物を追加して、ドラッグで配置できます。保存するとゲーム本体の街歩き画面にも反映されます。</p>
+    <div class="row"><button onclick="location.href='town_tile_editor.html'">タイル式編集へ</button></div>
+    <h2>建物を追加</h2>
+    <div id="palette" class="palette"></div>
+    <h2>地面・道・川を追加</h2>
+    <div id="layerPalette" class="palette"></div>
+    <h2>操作</h2>
+    <div class="row">
+      <button id="saveBtn">ゲームに保存</button>
+      <button id="resetBtn">初期化</button>
+    </div>
+    <div class="row">
+      <button id="deleteBtn">選択を削除</button>
+      <button id="dupBtn">複製</button>
+    </div>
+    <h2>表示</h2>
+    <div class="row">
+      <button id="mapBtn" class="active">広域地図</button>
+      <button id="gridBtn" class="active">グリッド</button>
+    </div>
+    <p class="mini">ホイールで拡大縮小。空白ドラッグで地図移動。建物ドラッグで配置変更。</p>
+  </aside>
+  <main id="stageWrap">
+    <canvas id="cv"></canvas>
+    <div id="toast"></div>
+  </main>
+  <aside id="right">
+    <h2>選択中のパーツ</h2>
+    <div id="empty">建物・道・川をクリックして選択してね。</div>
+    <div id="form" style="display:none">
+      <label>名前<input id="labelInput"></label>
+      <label>看板<input id="signInput"></label>
+      <label>種類<select id="kindInput"></select></label>
+      <label>画像素材<select id="assetInput"></select></label>
+      <label>幅<input id="wInput" type="number"></label>
+      <label>高さ<input id="hInput" type="number"></label>
+      <label>向き・回転<input id="rotInput" type="number" step="1"></label>
+      <div class="row">
+        <button id="rotLeftBtn" type="button">↺ 15°</button>
+        <button id="rotRightBtn" type="button">↻ 15°</button>
+        <button id="rotResetBtn" type="button">正面</button>
+      </div>
+      <label>メイン色<input id="colorInput" type="color"></label>
+      <label>差し色<input id="accentInput" type="color"></label>
+      <div class="row"><button id="applyBtn">反映</button></div>
+      <p class="mini" id="posText"></p>
+    </div>
+    <h2>JSON書き出し</h2>
+    <textarea id="jsonOut" readonly></textarea>
+    <div class="row"><button id="copyBtn">コピー</button></div>
+    <h2>建物デザイン方針</h2>
+    <span class="chip">夕方</span><span class="chip">探偵</span><span class="chip">少し懐かしい</span><span class="chip">青と赤の差し色</span>
+    <p class="mini">青太と紅音に合うように、あたたかい町並み＋青い屋根や赤い看板のアクセントを強めています。</p>
+  </aside>
+</div>
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const KEY='aono-tantei-town-editor-v1';
+const WORLD={w:1500,h:1380};
+const VIEW={w:0,h:0,dpr:1};
+const mapImg=new Image(); mapImg.src='assets/story/orengaoka_wide_map.png?v=1';
+const TYPES=[
+  {kind:'station',label:'橙ヶ丘駅',sign:'橙ヶ丘駅',w:260,h:130,color:'#596b7d',accent:'#ffd27a'},
+  {kind:'karaage',label:'からあげ屋',sign:'からあげ屋',w:180,h:110,color:'#b96038',accent:'#ffcf66'},
+  {kind:'stationery',label:'星野文具店',sign:'星野文具店',w:210,h:126,color:'#547f9b',accent:'#ffcf66'},
+  {kind:'apartment',label:'アパート',sign:'明智',w:190,h:132,color:'#8c8f96',accent:'#d8a85e'},
+  {kind:'school',label:'橙ヶ丘学園',sign:'橙ヶ丘学園',w:280,h:160,color:'#b9b187',accent:'#6da36c'},
+  {kind:'park',label:'公園',sign:'公園',w:240,h:130,color:'#73a76d',accent:'#f0c86c'},
+  {kind:'shop',label:'小さな店',sign:'SHOP',w:170,h:105,color:'#9a7f69',accent:'#7bb3d6'},
+  {kind:'house',label:'住宅',sign:'',w:130,h:90,color:'#bca98d',accent:'#60799b'}
+];
+const BUILDING_ASSETS=[
+  {kind:'stationery_asset',label:'星野文具店 PNG',sign:'星野文具店',w:230,h:180,color:'#547f9b',accent:'#ffcf66',asset:'assets/town/buildings/hoshino_stationery.png'},
+  {kind:'apartment_asset',label:'アパート PNG',sign:'アパート',w:210,h:190,color:'#8c8f96',accent:'#d8a85e',asset:'assets/town/buildings/aota_apartment.png'},
+  {kind:'karaage_asset',label:'からあげ屋 PNG',sign:'からあげ屋',w:200,h:165,color:'#b96038',accent:'#ffcf66',asset:'assets/town/buildings/karaage_shop.png'},
+  {kind:'school_asset',label:'学校 PNG',sign:'橙ヶ丘学園',w:280,h:190,color:'#b9b187',accent:'#6da36c',asset:'assets/town/buildings/orengaoka_school.png'},
+  {kind:'station_asset',label:'駅 PNG',sign:'橙ヶ丘駅',w:300,h:190,color:'#596b7d',accent:'#ffd27a',asset:'assets/town/buildings/orengaoka_station.png'}
+];
+const ALL_BUILDING_TYPES=[...BUILDING_ASSETS,...TYPES];
+const LAYER_TYPES=[
+  {kind:'concrete',label:'コンクリート',category:'surface',w:300,h:220,color:'#b8b8ad',accent:'#e4e0d3'},
+  {kind:'dirt',label:'土',category:'surface',w:300,h:220,color:'#a6794f',accent:'#d2a06d'},
+  {kind:'grass',label:'芝生',category:'surface',w:300,h:220,color:'#6fa95e',accent:'#b9dc72'},
+  {kind:'weeds',label:'雑草',category:'surface',w:260,h:180,color:'#567d48',accent:'#a7cf68'},
+  {kind:'road',label:'道',category:'path',w:90,h:360,color:'#d8ccb4',accent:'#fff0bb'},
+  {kind:'shopping_road',label:'商店街の道',category:'path',w:105,h:420,color:'#cba777',accent:'#ffd989'},
+  {kind:'alley',label:'細い路地',category:'path',w:48,h:260,color:'#b7a48e',accent:'#e9d5b9'},
+  {kind:'river',label:'川',category:'water',w:170,h:520,color:'#83c8e8',accent:'#d8f5ff'},
+  {kind:'rail',label:'線路',category:'path',w:120,h:620,color:'#6b7078',accent:'#d9d2bd'},
+  {kind:'bridge',label:'橋',category:'bridge',w:190,h:82,color:'#b9b0a0',accent:'#e9dfc8'}
+];
+let buildings=[
+  {...BUILDING_ASSETS[4],x:745,y:1270},
+  {...BUILDING_ASSETS[2],x:470,y:870},
+  {...BUILDING_ASSETS[0],x:620,y:640},
+  {...BUILDING_ASSETS[1],x:360,y:360},
+  {...BUILDING_ASSETS[3],x:1110,y:690},
+  {...TYPES[5],x:1010,y:925}
+];
+let layers=[
+  {...LAYER_TYPES[4],label:'線路',x:750,y:1252,rot:90},
+  {...LAYER_TYPES[1],label:'橙ヶ丘商店街',x:720,y:850,rot:0},
+  {...LAYER_TYPES[3],label:'川',x:760,y:190,rot:82},
+  {...LAYER_TYPES[0],label:'学校前通り',x:1030,y:770,rot:0}
+];
+let cam={x:0,y:0,scale:.62};
+let selected=null,selectedType='',drag=null,pan=null;
+let showMap=true,showGrid=true;
+const imageCache={};
+function assetImage(src){if(!src)return null;if(!imageCache[src]){const img=new Image();img.src=src+'?v=1';img.onload=draw;imageCache[src]=img;}return imageCache[src];}
+function resize(){const r=cv.getBoundingClientRect();VIEW.w=r.width;VIEW.h=r.height;VIEW.dpr=Math.min(3,devicePixelRatio||1);cv.width=VIEW.w*VIEW.dpr;cv.height=VIEW.h*VIEW.dpr;ctx.setTransform(VIEW.dpr,0,0,VIEW.dpr,0,0);draw();}
+function worldToScreen(x,y){return{x:(x-cam.x)*cam.scale,y:(y-cam.y)*cam.scale};}
+function screenToWorld(x,y){const r=cv.getBoundingClientRect();return{x:cam.x+(x-r.left)/cam.scale,y:cam.y+(y-r.top)/cam.scale};}
+function toast(t){$('toast').textContent=t;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),1500);}
+function save(){localStorage.setItem(KEY,JSON.stringify({version:2,world:WORLD,layers:layers.map(clean),buildings:buildings.map(clean)}));updateJson();toast('ゲーム用データを保存しました');}
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d?.buildings)buildings=d.buildings.map(b=>({...b}));if(d?.layers)layers=d.layers.map(l=>({...l}));}catch(e){} updateJson();}
+function clean(b){return{kind:b.kind,label:b.label,sign:b.sign,category:b.category,asset:b.asset,x:Math.round(b.x),y:Math.round(b.y),w:Math.round(b.w),h:Math.round(b.h),rot:Math.round(b.rot||0),color:b.color,accent:b.accent};}
+function addBuilding(t){const b={...t,rot:0,x:cam.x+VIEW.w/cam.scale/2,y:cam.y+VIEW.h/cam.scale/2};buildings.push(b);selected=b;selectedType='building';syncForm();updateJson();draw();}
+function addLayer(t){const l={...t,sign:'',x:cam.x+VIEW.w/cam.scale/2,y:cam.y+VIEW.h/cam.scale/2,rot:t.kind==='rail'?90:0};layers.push(l);selected=l;selectedType='layer';syncForm();updateJson();draw();}
+function hitBuilding(w){return [...buildings].reverse().find(b=>Math.abs(w.x-b.x)<b.w/2&&w.y<b.y+16&&w.y>b.y-b.h-16);}
+function hitLayer(w){return [...layers].reverse().find(l=>{const dx=w.x-l.x,dy=w.y-l.y;return Math.abs(dx)<l.w/2&&Math.abs(dy)<l.h/2;});}
+function draw(){
+  ctx.clearRect(0,0,VIEW.w,VIEW.h);
+  ctx.fillStyle='#d7d0bd';ctx.fillRect(0,0,VIEW.w,VIEW.h);
+  if(showMap&&mapImg.complete){const p=worldToScreen(0,0);ctx.globalAlpha=.36;ctx.drawImage(mapImg,p.x,p.y,WORLD.w*cam.scale,WORLD.h*cam.scale);ctx.globalAlpha=1;}
+  if(showGrid)drawGrid();
+  for(const l of [...layers].sort((a,b)=>layerRank(a)-layerRank(b)))drawLayer(l);
+  const items=[...buildings].sort((a,b)=>a.y-b.y);
+  for(const b of items)drawBuilding(b);
+}
+function drawGrid(){ctx.strokeStyle='rgba(40,48,58,.15)';ctx.lineWidth=1;for(let x=0;x<=WORLD.w;x+=100){const p=worldToScreen(x,0);ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.x,VIEW.h);ctx.stroke()}for(let y=0;y<=WORLD.h;y+=100){const p=worldToScreen(0,y);ctx.beginPath();ctx.moveTo(0,p.y);ctx.lineTo(VIEW.w,p.y);ctx.stroke()}}
+function rr(x,y,w,h,r,fill){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=fill;ctx.fill();}
+function layerRank(l){
+  const c=l.category||(l.kind==='concrete'||l.kind==='dirt'||l.kind==='grass'||l.kind==='weeds'?'surface':l.kind==='bridge'?'bridge':l.kind==='river'?'water':'path');
+  return c==='surface'?0:c==='water'?1:c==='path'?2:3;
+}
+function drawLayer(l){
+  const p=worldToScreen(l.x,l.y),w=l.w*cam.scale,h=l.h*cam.scale;
+  ctx.save();ctx.translate(p.x,p.y);ctx.rotate((l.rot||0)*Math.PI/180);
+  if(l.category==='surface'||['concrete','dirt','grass','weeds'].includes(l.kind)){
+    rr(-w/2,-h/2,w,h,18*cam.scale,l.color);
+    if(l.kind==='concrete'){
+      ctx.strokeStyle='rgba(255,255,255,.18)';ctx.lineWidth=1;for(let x=-w/2+42*cam.scale;x<w/2;x+=42*cam.scale){ctx.beginPath();ctx.moveTo(x,-h/2);ctx.lineTo(x,h/2);ctx.stroke()}for(let y=-h/2+42*cam.scale;y<h/2;y+=42*cam.scale){ctx.beginPath();ctx.moveTo(-w/2,y);ctx.lineTo(w/2,y);ctx.stroke()}
+    }else if(l.kind==='dirt'){
+      ctx.fillStyle='rgba(70,39,20,.20)';for(let i=0;i<36;i++){ctx.beginPath();ctx.ellipse((Math.sin(i*8.1)*.46)*w,(Math.cos(i*5.7)*.44)*h,2.6*cam.scale,1.5*cam.scale,0,0,Math.PI*2);ctx.fill();}
+    }else{
+      ctx.strokeStyle=l.accent;ctx.lineWidth=2*cam.scale;for(let i=0;i<32;i++){const x=(Math.sin(i*6.4)*.45)*w,y=(Math.cos(i*4.9)*.42)*h;ctx.beginPath();ctx.moveTo(x,y+5*cam.scale);ctx.lineTo(x+Math.sin(i)*8*cam.scale,y-7*cam.scale);ctx.stroke();}
+    }
+  }else if(l.kind==='river'){
+    rr(-w/2,-h/2,w,h,28*cam.scale,l.color);
+    ctx.strokeStyle=l.accent;ctx.lineWidth=3*cam.scale;ctx.setLineDash([24*cam.scale,18*cam.scale]);ctx.beginPath();ctx.moveTo(0,-h/2+18*cam.scale);ctx.lineTo(0,h/2-18*cam.scale);ctx.stroke();ctx.setLineDash([]);
+  }else if(l.kind==='rail'){
+    rr(-w/2,-h/2,w,h,4*cam.scale,l.color);
+    ctx.strokeStyle='#2f3339';ctx.lineWidth=4*cam.scale;ctx.beginPath();ctx.moveTo(-w*.28,-h/2);ctx.lineTo(-w*.28,h/2);ctx.moveTo(w*.28,-h/2);ctx.lineTo(w*.28,h/2);ctx.stroke();
+    ctx.strokeStyle=l.accent;ctx.lineWidth=3*cam.scale;for(let y=-h/2;y<h/2;y+=28*cam.scale){ctx.beginPath();ctx.moveTo(-w*.38,y);ctx.lineTo(w*.38,y);ctx.stroke();}
+  }else if(l.kind==='bridge'){
+    rr(-w/2,-h/2,w,h,8*cam.scale,l.color);ctx.strokeStyle=l.accent;ctx.lineWidth=3*cam.scale;ctx.strokeRect(-w*.42,-h*.28,w*.84,h*.56);
+  }else{
+    rr(-w/2,-h/2,w,h,l.kind==='alley'?10*cam.scale:16*cam.scale,l.color);
+    ctx.strokeStyle=l.accent;ctx.lineWidth=3*cam.scale;ctx.setLineDash(l.kind==='shopping_road'?[14*cam.scale,10*cam.scale]:[26*cam.scale,20*cam.scale]);ctx.beginPath();ctx.moveTo(0,-h/2+16*cam.scale);ctx.lineTo(0,h/2-16*cam.scale);ctx.stroke();ctx.setLineDash([]);
+  }
+  if(selected===l){ctx.strokeStyle='#ffe28c';ctx.lineWidth=3;ctx.setLineDash([7,5]);ctx.strokeRect(-w/2-6,-h/2-6,w+12,h+12);ctx.setLineDash([])}
+  ctx.restore();
+}
+function drawBuilding(b){
+  const p=worldToScreen(b.x,b.y),w=b.w*cam.scale,h=b.h*cam.scale,left=p.x-w/2,top=p.y-h;
+  ctx.save();ctx.translate(p.x,p.y);ctx.rotate((b.rot||0)*Math.PI/180);ctx.translate(-p.x,-p.y);ctx.shadowColor='rgba(0,0,0,.25)';ctx.shadowBlur=12*cam.scale;ctx.shadowOffsetY=8*cam.scale;
+  const img=assetImage(b.asset);
+  if(img?.complete&&img.naturalWidth){
+    ctx.drawImage(img,left,top,w,h);
+    ctx.shadowColor='transparent';
+    ctx.fillStyle='rgba(0,0,0,.23)';ctx.beginPath();ctx.ellipse(p.x,p.y+3*cam.scale,w*.34,6*cam.scale,0,0,Math.PI*2);ctx.fill();
+    if(selected===b){ctx.strokeStyle='#ffe28c';ctx.lineWidth=3;ctx.setLineDash([7,5]);ctx.strokeRect(left-6,top-6,w+12,h+12);ctx.setLineDash([])}
+    ctx.restore();return;
+  }
+  rr(left,top,w,h,10*cam.scale,b.color);ctx.shadowColor='transparent';
+  const roofH=Math.max(16*cam.scale,h*.22);
+  ctx.fillStyle=shade(b.color,-28);ctx.beginPath();ctx.moveTo(left+w*.08,top+roofH);ctx.lineTo(left+w*.50,top-roofH*.35);ctx.lineTo(left+w*.92,top+roofH);ctx.closePath();ctx.fill();
+  ctx.fillStyle=b.accent;rr(left+10*cam.scale,top+12*cam.scale,w-20*cam.scale,22*cam.scale,7*cam.scale,b.accent);
+  ctx.fillStyle='rgba(255,255,255,.24)';for(let row=0;row<2;row++)for(let i=0;i<3;i++)rr(left+18*cam.scale+i*(w*.25),top+(48+row*28)*cam.scale,Math.max(18*cam.scale,w*.14),18*cam.scale,4*cam.scale,'rgba(230,244,255,.48)');
+  ctx.fillStyle=shade(b.color,-45);rr(p.x-18*cam.scale,p.y-38*cam.scale,36*cam.scale,38*cam.scale,5*cam.scale,shade(b.color,-45));
+  ctx.fillStyle='rgba(255,244,188,.35)';ctx.fillRect(p.x-12*cam.scale,p.y-32*cam.scale,24*cam.scale,26*cam.scale);
+  if(b.kind==='park'){ctx.fillStyle='#4e8f5f';ctx.beginPath();ctx.ellipse(p.x,p.y-h*.45,w*.38,h*.25,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=b.accent;ctx.beginPath();ctx.ellipse(p.x+w*.15,p.y-h*.50,w*.06,h*.06,0,0,Math.PI*2);ctx.fill();}
+  if(b.kind==='school'){ctx.fillStyle='rgba(255,255,255,.35)';ctx.fillRect(left+w*.43,top+h*.18,w*.14,h*.46);ctx.fillRect(left+w*.35,top+h*.33,w*.30,h*.10)}
+  if(b.kind==='karaage'){ctx.fillStyle='#ffedac';ctx.beginPath();ctx.arc(left+w*.82,top+h*.36,13*cam.scale,0,Math.PI*2);ctx.fill();ctx.fillStyle='#c76535';ctx.beginPath();ctx.arc(left+w*.82,top+h*.36,8*cam.scale,0,Math.PI*2);ctx.fill();}
+  if(b.kind==='apartment'){ctx.fillStyle='rgba(255,255,255,.30)';for(let yy=0;yy<2;yy++)for(let xx=0;xx<4;xx++)ctx.fillRect(left+18*cam.scale+xx*36*cam.scale,top+(46+yy*28)*cam.scale,18*cam.scale,14*cam.scale)}
+  if(b.kind==='stationery'){ctx.fillStyle='#ffdf6f';ctx.beginPath();for(let i=0;i<5;i++){const a=-Math.PI/2+i*Math.PI*2/5;ctx.lineTo(p.x+Math.cos(a)*13*cam.scale,p.y-h*.72+Math.sin(a)*13*cam.scale)}ctx.closePath();ctx.fill();}
+  ctx.fillStyle='#1a2430';ctx.font=`900 ${Math.max(9,12*cam.scale)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';if(b.sign)ctx.fillText(b.sign,p.x,top+21*cam.scale);
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(p.x,p.y+2*cam.scale,w*.36,5*cam.scale,0,0,Math.PI*2);ctx.fill();
+  if(selected===b){ctx.strokeStyle='#ffe28c';ctx.lineWidth=3;ctx.setLineDash([7,5]);ctx.strokeRect(left-6,top-6,w+12,h+12);ctx.setLineDash([])}
+  ctx.restore();
+}
+function shade(hex,amt){const n=parseInt(hex.slice(1),16);let r=(n>>16)+amt,g=(n>>8&255)+amt,b=(n&255)+amt;r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b));return`#${(r<<16|g<<8|b).toString(16).padStart(6,'0')}`}
+function syncForm(){const has=!!selected;$('empty').style.display=has?'none':'block';$('form').style.display=has?'block':'none';if(!has)return;$('labelInput').value=selected.label;$('signInput').value=selected.sign||'';$('kindInput').value=selected.kind;$('assetInput').value=selected.asset||'';$('wInput').value=selected.w;$('hInput').value=selected.h;$('rotInput').value=selected.rot||0;$('colorInput').value=selected.color;$('accentInput').value=selected.accent;$('posText').textContent=`${selectedType} / x:${Math.round(selected.x)} y:${Math.round(selected.y)} / 回転:${Math.round(selected.rot||0)}°${selected.asset?' / PNG素材':''}`;}
+function applyForm(){if(!selected)return;selected.label=$('labelInput').value;selected.sign=$('signInput').value;selected.kind=$('kindInput').value;selected.asset=$('assetInput').value||'';selected.w=+$('wInput').value;selected.h=+$('hInput').value;selected.rot=+$('rotInput').value||0;selected.color=$('colorInput').value;selected.accent=$('accentInput').value;updateJson();draw();}
+function updateJson(){$('jsonOut').value=JSON.stringify({version:2,world:WORLD,layers:layers.map(clean),buildings:buildings.map(clean)},null,2);}
+cv.addEventListener('pointerdown',e=>{const w=screenToWorld(e.clientX,e.clientY);const b=hitBuilding(w);if(b){selected=b;selectedType='building';drag={b,dx:b.x-w.x,dy:b.y-w.y};cv.classList.add('dragging');syncForm();draw();return;}const l=hitLayer(w);if(l){selected=l;selectedType='layer';drag={b:l,dx:l.x-w.x,dy:l.y-w.y};cv.classList.add('dragging');syncForm();draw();return;}pan={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y};selected=null;selectedType='';syncForm();draw();});
+cv.addEventListener('pointermove',e=>{if(drag){const w=screenToWorld(e.clientX,e.clientY);drag.b.x=Math.max(20,Math.min(WORLD.w-20,w.x+drag.dx));drag.b.y=Math.max(40,Math.min(WORLD.h-10,w.y+drag.dy));syncForm();updateJson();draw();}else if(pan){cam.x=pan.cx-(e.clientX-pan.x)/cam.scale;cam.y=pan.cy-(e.clientY-pan.y)/cam.scale;draw();}});
+cv.addEventListener('pointerup',()=>{drag=null;pan=null;cv.classList.remove('dragging')});
+cv.addEventListener('wheel',e=>{e.preventDefault();const old=cam.scale;cam.scale=Math.max(.35,Math.min(1.6,cam.scale*(e.deltaY>0?.9:1.1)));const r=cv.getBoundingClientRect();const wx=cam.x+(e.clientX-r.left)/old,wy=cam.y+(e.clientY-r.top)/old;cam.x=wx-(e.clientX-r.left)/cam.scale;cam.y=wy-(e.clientY-r.top)/cam.scale;draw();},{passive:false});
+const emptyAsset=document.createElement('option');emptyAsset.value='';emptyAsset.textContent='Canvas描画';$('assetInput').appendChild(emptyAsset);
+for(const t of ALL_BUILDING_TYPES){const b=document.createElement('button');b.textContent=`＋ ${t.label}`;b.onclick=()=>addBuilding(t);$('palette').appendChild(b);const o=document.createElement('option');o.value=t.kind;o.textContent=t.kind;$('kindInput').appendChild(o);}
+for(const t of BUILDING_ASSETS){const o=document.createElement('option');o.value=t.asset;o.textContent=t.label;$('assetInput').appendChild(o);}
+for(const t of LAYER_TYPES){const b=document.createElement('button');b.textContent=`＋ ${t.label}`;b.onclick=()=>addLayer(t);$('layerPalette').appendChild(b);const o=document.createElement('option');o.value=t.kind;o.textContent=t.kind;$('kindInput').appendChild(o);}
+$('saveBtn').onclick=save;$('resetBtn').onclick=()=>{localStorage.removeItem(KEY);location.reload()};$('deleteBtn').onclick=()=>{if(!selected)return;if(selectedType==='building')buildings=buildings.filter(b=>b!==selected);else layers=layers.filter(l=>l!==selected);selected=null;selectedType='';syncForm();updateJson();draw()};$('dupBtn').onclick=()=>{if(!selected)return;const b={...selected,x:selected.x+40,y:selected.y+40,label:selected.label+' コピー'};if(selectedType==='building')buildings.push(b);else layers.push(b);selected=b;syncForm();draw()};$('applyBtn').onclick=applyForm;$('copyBtn').onclick=async()=>{await navigator.clipboard.writeText($('jsonOut').value);toast('JSONをコピーしました')};$('mapBtn').onclick=()=>{showMap=!showMap;$('mapBtn').classList.toggle('active',showMap);draw()};$('gridBtn').onclick=()=>{showGrid=!showGrid;$('gridBtn').classList.toggle('active',showGrid);draw()};
+$('rotLeftBtn').onclick=()=>{if(!selected)return;selected.rot=(+selected.rot||0)-15;syncForm();updateJson();draw();};
+$('rotRightBtn').onclick=()=>{if(!selected)return;selected.rot=(+selected.rot||0)+15;syncForm();updateJson();draw();};
+$('rotResetBtn').onclick=()=>{if(!selected)return;selected.rot=0;syncForm();updateJson();draw();};
+window.addEventListener('resize',resize);load();resize();mapImg.onload=draw;
+</script>
+</body>
+</html>

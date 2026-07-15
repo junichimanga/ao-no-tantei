@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>青ノ探偵 細密ピクセル画風試作</title>
+<style>
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; height:100dvh; background:#090b10; overflow:hidden;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif; }
+  body{ display:flex; align-items:center; justify-content:center; }
+  #stage{ position:relative; width:100%; max-width:420px; height:100vh; height:100dvh; max-height:900px;
+    background:#0b0c13; overflow:hidden; isolation:isolate; }
+  @media(min-width:440px){ #stage{ border-radius:28px; box-shadow:0 24px 80px #000; } }
+  canvas{ display:block; width:100%; height:100%; image-rendering:auto; }
+  #grade,#vignette{ position:absolute; inset:0; pointer-events:none; z-index:3; }
+  #grade{ background:linear-gradient(180deg,rgba(20,28,50,.08),rgba(55,20,17,.08)); mix-blend-mode:multiply; }
+  #vignette{ background:radial-gradient(ellipse at 50% 47%,transparent 34%,rgba(8,4,11,.10) 58%,rgba(5,2,8,.58) 100%); }
+  #objective{ position:absolute; z-index:6; top:calc(10px + env(safe-area-inset-top,0px)); left:12px;
+    max-width:calc(100% - 24px); color:#f7df9b; background:rgba(11,14,25,.84); border:1px solid #7b6741;
+    box-shadow:0 0 0 2px rgba(3,5,10,.85),inset 0 0 0 1px rgba(255,232,166,.12);
+    padding:7px 10px; font-size:11px; font-weight:900; letter-spacing:.03em; }
+  #objective::before{ content:"◆"; color:#ffbc4b; margin-right:6px; }
+  #near{ position:absolute; z-index:6; bottom:calc(17px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%);
+    min-width:180px; max-width:calc(100% - 28px); text-align:center; color:#ffe598; background:rgba(8,10,18,.9);
+    border:1px solid #876d42; box-shadow:0 0 0 2px rgba(2,3,8,.86); padding:9px 14px; font-size:12px; font-weight:900;
+    display:none; pointer-events:none; }
+  #dialogue{ position:absolute; z-index:8; left:4px; right:8px; bottom:calc(18px + env(safe-area-inset-bottom,0px)); min-height:184px;
+    display:none; grid-template-columns:142px 1fr; align-items:end; pointer-events:none; filter:drop-shadow(0 12px 18px rgba(0,0,0,.62)); }
+  #dialogue.show{ display:grid; }
+  #portraitWrap{ height:198px; align-self:end; border:0; background:transparent; overflow:visible;
+    box-shadow:none; border-radius:0; pointer-events:none; }
+  #portrait{ width:100%; height:100%; display:block; image-rendering:auto;
+    filter:saturate(1.02) contrast(1.05) brightness(1.02) drop-shadow(0 8px 8px rgba(0,0,0,.45)); }
+  #speech{ min-height:124px; margin-left:-16px; padding:31px 13px 18px 27px; color:#f9f3df; background:linear-gradient(180deg,rgba(29,43,63,.96),rgba(14,22,35,.96));
+    border:2px solid #d8e5e9; box-shadow:inset 0 0 0 2px #30465b,0 0 0 2px rgba(5,7,13,.78); position:relative; border-radius:8px; }
+  #speaker{ position:absolute; top:-2px; left:12px; height:25px; min-width:108px; padding:4px 12px; color:#e9fbff;
+    background:linear-gradient(180deg,#2f526b,#1e344b); border:2px solid #d8e5e9; font-size:11px; font-weight:900; border-radius:0 0 8px 8px; }
+  #line{ font-size:13px; line-height:1.7; font-weight:900; text-shadow:0 1px #000; }
+  #advance{ position:absolute; right:7px; bottom:4px; color:#f0ba57; font-size:10px; animation:blink .8s steps(2,end) infinite; }
+  @keyframes blink{50%{opacity:.25}}
+  #rewardToast{ position:absolute; z-index:9; top:calc(54px + env(safe-area-inset-top,0px)); left:50%; transform:translate(-50%,-10px);
+    min-width:240px; max-width:calc(100% - 26px); padding:10px 14px; text-align:center; color:#fff2c5; background:rgba(13,17,28,.92);
+    border:1px solid #e0b05e; box-shadow:0 0 0 2px rgba(3,5,10,.8),0 12px 34px rgba(0,0,0,.38); font-size:12px; font-weight:900;
+    opacity:0; pointer-events:none; transition:opacity .22s ease,transform .22s ease; }
+  #rewardToast.show{ opacity:1; transform:translate(-50%,0); }
+  #interiorView{position:absolute;inset:0;z-index:18;display:none;overflow:hidden;color:#f7f2e5;background:linear-gradient(180deg,#33465a 0 52%,#8b735a 52% 100%)}
+  #interiorView.show{display:block}
+  #interiorScene{position:absolute;inset:0;background:
+    linear-gradient(90deg,transparent 0 8%,rgba(255,255,255,.10) 8% 10%,transparent 10% 90%,rgba(255,255,255,.10) 90% 92%,transparent 92%),
+    linear-gradient(180deg,#415972 0 52%,#aa8d6d 52% 100%)}
+  #interiorScene::before{content:"";position:absolute;left:10%;right:10%;top:18%;height:26%;border:8px solid #29384a;border-bottom-width:16px;background:linear-gradient(135deg,#bde3f1,#6ca1bd);box-shadow:0 12px 22px rgba(0,0,0,.28)}
+  #interiorScene::after{content:"";position:absolute;left:16%;right:16%;bottom:17%;height:16%;border-radius:8px;background:#4e3527;box-shadow:0 -13px 0 #b78752,0 12px 24px rgba(0,0,0,.35)}
+  #interiorView[data-to="hoshino_stationery"] #interiorScene{background:linear-gradient(180deg,#6c8b82 0 52%,#9b7857 52%)}
+  #interiorView[data-to="aota_room"] #interiorScene{background:linear-gradient(180deg,#62758e 0 52%,#9e856d 52%)}
+  #interiorView[data-to="school"] #interiorScene{background:linear-gradient(180deg,#8b9fb0 0 52%,#9d7656 52%)}
+  #interiorView[data-to="karaage_shop"] #interiorScene{background:linear-gradient(180deg,#b66747 0 52%,#8e5f42 52%)}
+  #interiorCard{position:absolute;left:16px;right:16px;bottom:calc(18px + env(safe-area-inset-bottom,0px));padding:18px;border:2px solid #e8d098;background:rgba(16,24,35,.94);box-shadow:0 14px 30px rgba(0,0,0,.45)}
+  #interiorEyebrow{font-size:10px;font-weight:900;letter-spacing:.18em;color:#e8b85e;margin-bottom:6px}
+  #interiorTitle{font-size:21px;font-weight:900;margin-bottom:7px}
+  #interiorHint{font-size:12px;line-height:1.65;color:#ced8e4;margin-bottom:14px}
+  #exitInteriorBtn{width:100%;border:2px solid #f0d795;background:linear-gradient(#33536d,#213a50);color:#fff8e7;padding:12px;font-weight:900;border-radius:9px}
+  #devPanel{ position:absolute; z-index:7; right:8px; top:calc(10px + env(safe-area-inset-top,0px));
+    width:158px; padding:8px; color:#e9f2ff; background:rgba(9,13,22,.72); border:1px solid rgba(255,220,150,.38);
+    box-shadow:0 0 0 2px rgba(2,3,8,.5),0 10px 28px rgba(0,0,0,.22); backdrop-filter:blur(8px);
+    font-size:10px; font-weight:900; letter-spacing:.02em; }
+  #devPanel .title{ color:#ffcf73; margin-bottom:6px; display:flex; justify-content:space-between; gap:6px; }
+  #devPanel button{ appearance:none; border:1px solid rgba(255,222,160,.42); background:rgba(40,53,72,.82); color:#eef7ff;
+    padding:5px 6px; margin:0 4px 5px 0; border-radius:7px; font-size:10px; font-weight:900; }
+  #devPanel button.active{ background:#dca957; color:#17202b; border-color:#ffe2a6; }
+  #devStats{ color:#b8c6d7; line-height:1.45; }
+  @media(max-width:360px){ #devPanel{ transform:scale(.88); transform-origin:top right; } }
+  #storyIntro{ position:absolute; inset:0; z-index:12; display:none; color:#f8f0de; background:#0c111b; overflow:hidden; }
+  #storyIntro.show{ display:block; }
+  #storyBg{ position:absolute; inset:0; background:
+    radial-gradient(circle at 50% 34%,rgba(255,202,117,.22),transparent 34%),
+    linear-gradient(180deg,#182236 0%,#121725 46%,#080a10 100%); transition:background .32s ease; }
+  #storyBg.train{ background:
+    linear-gradient(90deg,rgba(10,14,24,.95) 0 15%,transparent 15% 85%,rgba(10,14,24,.95) 85%),
+    repeating-linear-gradient(90deg,rgba(255,210,130,.16) 0 34px,rgba(255,210,130,0) 34px 76px),
+    linear-gradient(180deg,#172b4a 0%,#d8794f 42%,#18131e 43%,#07090f 100%); }
+  #storyBg.apartment{ background:
+    radial-gradient(circle at 72% 26%,rgba(255,210,126,.30),transparent 18%),
+    linear-gradient(90deg,rgba(24,31,43,.95) 0 50%,rgba(37,43,55,.95) 50%),
+    linear-gradient(180deg,#202838,#0b0e15); }
+  #storyBg.school{ background:
+    linear-gradient(180deg,rgba(119,172,214,.45),rgba(255,240,199,.18)),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.22) 0 54px,rgba(255,255,255,0) 54px 90px),
+    linear-gradient(180deg,#cedbe5 0%,#a47c53 100%); }
+  #storyBg.case{ background:
+    radial-gradient(circle at 48% 32%,rgba(255,234,159,.32),transparent 30%),
+    linear-gradient(180deg,#445468 0%,#2b3442 42%,#5d4936 43%,#241d1b 100%); }
+  #storyBg.town{ background:
+    radial-gradient(circle at 48% 24%,rgba(255,191,98,.34),transparent 30%),
+    linear-gradient(180deg,#e59a63 0%,#42576f 52%,#201b22 100%); }
+  #storyLabel{ position:absolute; top:calc(18px + env(safe-area-inset-top,0px)); left:16px; right:16px;
+    padding:8px 10px; color:#ffe4a8; background:rgba(7,10,18,.72); border:1px solid rgba(255,218,142,.45);
+    box-shadow:0 0 0 2px rgba(0,0,0,.32); font-size:12px; font-weight:900; letter-spacing:.04em; }
+  #storyVisual{ position:absolute; left:28px; right:28px; top:104px; bottom:230px; border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.045); box-shadow:inset 0 0 36px rgba(255,255,255,.04),0 20px 60px rgba(0,0,0,.28);
+    border-radius:18px; overflow:hidden; }
+  #storyVisual::before{ content:""; position:absolute; inset:16px; border-radius:14px;
+    background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,0)); }
+  #storyVisual::after{ content:""; position:absolute; left:50%; bottom:20px; width:92px; height:126px; transform:translateX(-50%);
+    background:linear-gradient(180deg,#2471d4 0 24%,#ffe3c8 24% 36%,#14223a 36% 70%,#3b3f49 70%);
+    border-radius:48% 48% 18px 18px; filter:drop-shadow(0 12px 14px rgba(0,0,0,.45)); opacity:.92; }
+  #storyIntro[data-bg="train"] #storyVisual{ background:url("assets/town/train.png") center/cover no-repeat; }
+  #storyIntro[data-bg="train"] #storyVisual::before{ inset:0; border-radius:0;
+    background:linear-gradient(180deg,rgba(255,210,130,.05),rgba(10,12,20,.45)),radial-gradient(circle at 36% 38%,rgba(255,232,170,.18),transparent 40%); }
+  #storyIntro[data-bg="train"] #storyVisual::after{ display:none; }
+  #storyCharacter{ position:absolute; right:-32px; bottom:-22px; width:69%; max-height:112%; object-fit:contain; object-position:center bottom;
+    opacity:0; transform:translateY(14px); filter:drop-shadow(0 18px 18px rgba(0,0,0,.58)) saturate(.96) brightness(.98); transition:opacity .24s ease, transform .24s ease; }
+  #storyIntro[data-bg="train"] #storyCharacter{ opacity:1; transform:translateY(0); }
+  #storyFocusCard{ position:absolute; left:14px; bottom:16px; width:156px; height:118px; opacity:0; transform:translateY(8px) rotate(-4deg);
+    transition:opacity .2s ease,transform .2s ease; filter:drop-shadow(0 12px 12px rgba(0,0,0,.42));
+    background-position:center; background-repeat:no-repeat; background-size:contain; }
+  #storyFocusCard::before,#storyFocusCard::after{ content:none; }
+  #storyIntro[data-focus="letter"] #storyFocusCard,
+  #storyIntro[data-focus="pen"] #storyFocusCard{ opacity:1; transform:translateY(0) rotate(-4deg); }
+  #storyIntro[data-focus="letter"] #storyFocusCard{ background-image:url("assets/story/props/letter_prop.png"); }
+  #storyIntro[data-focus="pen"] #storyFocusCard{ width:164px; height:164px; bottom:2px; background-image:url("assets/story/props/fountain_pen_prop.png"); }
+  #storyMemoryGlow{ position:absolute; inset:0; opacity:0; pointer-events:none; background:
+    radial-gradient(circle at 30% 38%,rgba(255,248,210,.42),transparent 20%),
+    radial-gradient(circle at 22% 44%,rgba(25,29,38,.36),transparent 42%); mix-blend-mode:screen; transition:opacity .18s ease; }
+  #storyIntro[data-memory="1"] #storyMemoryGlow{ opacity:1; }
+  #storyApt{ position:absolute; inset:0; display:none; background:
+    linear-gradient(180deg,rgba(255,205,132,.16),rgba(11,16,27,.68)),
+    linear-gradient(180deg,#445066 0%,#20283a 54%,#151a25 100%); }
+  #storyIntro[data-bg="apartment"] #storyApt{ display:block; }
+  #storyIntro[data-bg="apartment"] #storyVisual::before{ display:none; }
+  #storyIntro[data-bg="apartment"] #storyVisual::after{ display:none; }
+  #storyIntro[data-bg="apartment"] #storyCharacter{ opacity:.95; width:58%; right:-22px; bottom:-24px; transform:translateY(0); }
+  #storyApt::before{ content:""; position:absolute; inset:0; background:
+    radial-gradient(circle at 77% 18%,rgba(255,219,137,.38),transparent 17%),
+    radial-gradient(circle at 28% 42%,rgba(255,255,255,.08),transparent 28%); }
+  #storyApt::after{ content:none; }
+  #aptStation,#aptBuilding,#aptRoom,#aptDesk,#aptWindow,#aptKaraage{ position:absolute; opacity:0; transition:opacity .22s ease; }
+  #storyIntro[data-apt="station"] #aptStation,
+  #storyIntro[data-apt="building"] #aptBuilding,
+  #storyIntro[data-apt="mailbox"] #aptBuilding,
+  #storyIntro[data-apt="room"] #aptRoom,
+  #storyIntro[data-apt="desk"] #aptDesk,
+  #storyIntro[data-apt="window"] #aptWindow,
+  #storyIntro[data-apt="karaage"] #aptWindow,
+  #storyIntro[data-apt="karaage"] #aptKaraage{ opacity:1; }
+  #aptStation,#aptBuilding,#aptRoom,#aptDesk,#aptWindow{ inset:0; border-radius:0; background-position:center; background-size:cover; background-repeat:no-repeat; }
+  #aptStation{ background-image:linear-gradient(180deg,rgba(255,197,111,.03),rgba(7,9,15,.26)),url("assets/story/orengaoka_station_sunset.png"); }
+  #aptBuilding{ background-image:linear-gradient(180deg,rgba(255,197,111,.03),rgba(7,9,15,.24)),url("assets/story/apartment_exterior_sunset.png"); }
+  #aptRoom,#aptWindow{ background-image:linear-gradient(180deg,rgba(255,210,146,.02),rgba(7,9,15,.24)),url("assets/story/apartment_room_evening.png"); }
+  #aptDesk{ background-image:linear-gradient(180deg,rgba(255,226,169,.02),rgba(7,9,15,.22)),url("assets/story/apartment_desk_clues.png"); }
+  #aptWindow::after{ content:""; position:absolute; inset:0; background:radial-gradient(circle at 72% 32%,rgba(255,202,112,.20),transparent 24%); }
+  #aptKaraage{ left:28px; top:54px; width:110px; height:70px; border-radius:999px; background:
+    radial-gradient(circle at 20% 40%,rgba(255,229,118,.62),transparent 12%),
+    radial-gradient(circle at 54% 58%,rgba(255,154,54,.48),transparent 14%),
+    radial-gradient(circle at 72% 35%,rgba(255,200,94,.42),transparent 16%);
+    filter:blur(1px) drop-shadow(0 0 18px rgba(255,158,60,.46)); }
+  #storyProps{ position:absolute; left:50%; bottom:34px; width:150px; height:74px; transform:translateX(-50%); pointer-events:none; }
+  #storyProps::before{ content:""; position:absolute; left:2px; top:12px; width:88px; height:48px; transform:rotate(-6deg);
+    background:#f6e9c7; border:2px solid #b99a61; box-shadow:0 6px 10px rgba(0,0,0,.28); }
+  #storyProps::after{ content:""; position:absolute; right:8px; top:34px; width:74px; height:9px; transform:rotate(12deg);
+    background:linear-gradient(90deg,#112744,#315f91 70%,#d6c08a 70%); border-radius:8px; box-shadow:0 5px 8px rgba(0,0,0,.24); }
+  #storyIntro[data-bg="train"] #storyProps{ display:none; }
+  #storyTalk{ position:absolute; left:12px; right:12px; bottom:calc(18px + env(safe-area-inset-bottom,0px));
+    min-height:186px; padding:36px 18px 26px; background:linear-gradient(180deg,rgba(31,45,65,.96),rgba(13,20,32,.98));
+    border:2px solid #dce9ee; box-shadow:inset 0 0 0 2px #2d4257,0 0 0 2px rgba(0,0,0,.62);
+    border-radius:10px; }
+  #storySpeaker{ position:absolute; top:-2px; left:14px; min-width:120px; height:27px; padding:4px 12px;
+    color:#ecfbff; background:linear-gradient(180deg,#32566f,#1f364d); border:2px solid #dce9ee;
+    border-radius:0 0 8px 8px; font-size:12px; font-weight:900; }
+  #storyIntro[data-narration="1"] #storySpeaker{ display:none; }
+  #storyIntro[data-narration="1"] #storyTalk{ padding-top:24px; }
+  #storyText{ font-size:14px; line-height:1.75; font-weight:900; text-shadow:0 1px #000; white-space:pre-wrap; }
+  #storyTap{ position:absolute; right:12px; bottom:7px; color:#f2bf62; font-size:10px; font-weight:900; animation:blink .8s steps(2,end) infinite; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv"></canvas>
+  <div id="grade"></div>
+  <div id="vignette"></div>
+  <div id="objective">星野文具店へ向かう</div>
+  <div id="near"></div>
+  <div id="dialogue">
+    <div id="portraitWrap"><canvas id="portrait" width="204" height="224"></canvas></div>
+    <div id="speech"><div id="speaker"></div><div id="line"></div><div id="advance">▼ TAP</div></div>
+  </div>
+  <div id="rewardToast"></div>
+  <div id="interiorView" aria-hidden="true">
+    <div id="interiorScene"></div>
+    <div id="interiorCard">
+      <div id="interiorEyebrow">BUILDING INTERIOR</div>
+      <div id="interiorTitle">建物内</div>
+      <div id="interiorHint">建物内マップの仮画面です。ここから室内探索や会話、調査へつなげられます。</div>
+      <button id="exitInteriorBtn" type="button">外へ出る</button>
+    </div>
+  </div>
+  <div id="storyIntro" class="show">
+    <div id="storyBg" class="train"></div>
+    <div id="storyLabel">橙ヶ丘へ向かう電車</div>
+    <div id="storyVisual">
+      <div id="storyMemoryGlow"></div>
+      <div id="storyApt">
+        <div id="aptStation"></div>
+        <div id="aptBuilding"></div>
+        <div id="aptRoom"></div>
+        <div id="aptDesk"></div>
+        <div id="aptWindow"></div>
+        <div id="aptKaraage"></div>
+      </div>
+      <img id="storyCharacter" alt="">
+      <div id="storyFocusCard"></div>
+      <div id="storyProps"></div>
+    </div>
+    <div id="storyTalk">
+      <div id="storySpeaker">明智 青太</div>
+      <div id="storyText"></div>
+      <div id="storyTap">▼ TAP</div>
+    </div>
+  </div>
+  <div id="devPanel">
+    <div class="title"><span>DEV キャラ確認</span><span>v42</span></div>
+    <div id="charButtons"></div>
+    <div id="devStats">読み込み中...</div>
+  </div>
+</div>
+<script>
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const VIEW={w:0,h:0,dpr:1};
+function setupQuality(c){
+  c.imageSmoothingEnabled=true;
+  c.imageSmoothingQuality='high';
+}
+setupQuality(ctx);
+const $=id=>document.getElementById(id);
+
+// ---- 素材 ----
+const IMG={};
+function load(name,src){ const i=new Image(); i.src=src; IMG[name]=i; return i; }
+function makeImage(src){ const i=new Image(); i.src=src; return i; }
+const ASSET_IMG={};
+function assetImage(src){if(!src)return null;if(!ASSET_IMG[src]){const i=new Image();i.src=src+'?v=1';ASSET_IMG[src]=i;}return ASSET_IMG[src];}
+load('ground','assets/town/ground.png');
+const V='?v=42';
+const DENSE_DIRECTIONS=['front','right','back','left'];
+const CHARACTER_CONFIGS=[
+  {id:'aota',label:'青太',folder:'assets/dense/aota',idleFps:6,scale:96,filter:'saturate(1.04) brightness(1.08) contrast(1.05)'},
+  {id:'akane',label:'紅音',folder:'assets/dense/akane',idleFps:7,scale:96,filter:'saturate(1.08) brightness(1.08) contrast(1.04)'},
+  {id:'aota_focus',label:'変身青太',folder:'assets/dense/aota_focus',idleFps:5,scale:100,filter:'saturate(1.12) brightness(1.1) contrast(1.08)'}
+];
+const CHARACTERS={};
+let activeCharacterId='aota';
+['bakery','book','stationery','karaage','flower'].forEach(n=>load(n,'assets/town_td/'+n+'.png'));
+load('boy','assets/npc/boy.png'); load('tadokoro','assets/npc/tadokoro.png'); load('grandma','assets/npc/grandma.png');
+load('boyPortrait','assets/npc/boy.png');
+load('portrait_aota_basic','assets/portraits/aota_basic.png'+V);
+load('portrait_aota_serious','assets/portraits/aota_serious.png'+V);
+load('portrait_aota_surprised','assets/portraits/aota_surprised.png'+V);
+load('portrait_akane_basic','assets/portraits/akane_basic.png'+V);
+load('portrait_akane_jito','assets/portraits/akane_jito.png'+V);
+load('portrait_akane_tsukkomi','assets/portraits/akane_tsukkomi.png'+V);
+load('portrait_akane_surprised','assets/portraits/akane_surprised.png'+V);
+
+async function loadCharacter(cfg){
+  const res=await fetch(`${cfg.folder}/manifest.json${V}`);
+  if(!res.ok)throw new Error(`${cfg.label} manifest HTTP ${res.status}`);
+  const manifest=await res.json();
+  const file=f=>makeImage(`${cfg.folder}/${f}${V}`);
+  const char={...cfg,manifest,walk:{},idle:{},idleAnim:{},cycleFps:manifest.cycleFps||8,idleCycleFps:cfg.idleFps||manifest.idleCycleFps||5};
+  for(const dir of DENSE_DIRECTIONS){
+    char.walk[dir]=(manifest.directions?.[dir]||[]).map(file);
+    char.idle[dir]=manifest.idle?.[dir]?file(manifest.idle[dir]):char.walk[dir][0];
+    char.idleAnim[dir]=(manifest.idleAnimations?.[dir]||[]).map(file);
+  }
+  char.portrait=manifest.idle?.front?file(manifest.idle.front):char.idle.front;
+  CHARACTERS[cfg.id]=char;
+}
+
+async function loadCharacters(){
+  await Promise.all(CHARACTER_CONFIGS.map(loadCharacter));
+  initDevPanel();
+}
+
+function setPlayableCharacter(id){
+  if(!CHARACTERS[id])return;
+  activeCharacterId=id;
+  for(const btn of document.querySelectorAll('#charButtons button')){
+    btn.classList.toggle('active',btn.dataset.character===id);
+  }
+  updateDevStats();
+}
+
+function initDevPanel(){
+  const root=$('charButtons');
+  root.innerHTML='';
+  for(const cfg of CHARACTER_CONFIGS){
+    if(!CHARACTERS[cfg.id])continue;
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.dataset.character=cfg.id;
+    btn.textContent=cfg.label;
+    btn.addEventListener('click',()=>setPlayableCharacter(cfg.id));
+    root.appendChild(btn);
+  }
+  root.appendChild(document.createElement('br'));
+  const editBtn=document.createElement('button');
+  editBtn.type='button';
+  editBtn.id='townEditBtn';
+  editBtn.textContent='街編集OFF';
+  editBtn.addEventListener('click',toggleTownEdit);
+  root.appendChild(editBtn);
+  const resetBtn=document.createElement('button');
+  resetBtn.type='button';
+  resetBtn.textContent='配置リセット';
+  resetBtn.addEventListener('click',resetTownLayout);
+  root.appendChild(resetBtn);
+  setPlayableCharacter(activeCharacterId);
+}
+
+function updateDevStats(){
+  const char=CHARACTERS[activeCharacterId];
+  if(!char)return;
+  const summary=DENSE_DIRECTIONS.map(dir=>{
+    const walk=char.walk[dir]?.length||0;
+    const idle=char.idleAnim[dir]?.length||1;
+    return `${dir}:待${idle}/歩${walk}`;
+  }).join('<br>');
+  const edit=EDIT.enabled?`<br>街編集: ON<br>${EDIT.drag?.building?.label||EDIT.selected?.label||'建物をドラッグ'}`:'<br>街編集: OFF';
+  $('devStats').innerHTML=`${char.label}<br>${summary}<br>待機 ${char.idleCycleFps||5}fps / 歩行 ${char.cycleFps||8}fps${edit}`;
+}
+
+// ---- 現代風の町 ----
+const WORLD={w:1500,h:1380};
+const BUILDINGS=[
+  {x:240,y:220,w:190,h:118,kind:'cafe',label:'AOI CAFE',sign:'AOI CAFE',color:'#d8b07a',accent:'#2a7d8c'},
+  {x:600,y:310,w:210,h:132,kind:'book',label:'ミライ書店',sign:'MIRAI BOOKS',color:'#7e9bbf',accent:'#f0d16c'},
+  {x:1030,y:410,w:230,h:138,kind:'stationery',label:'星野文具店',sign:'HOSHINO STATIONERY',color:'#8ba7a4',accent:'#ffbd54'},
+  {x:1320,y:285,w:190,h:118,kind:'flower',label:'フラワーラボ',sign:'FLOWER LAB',color:'#d89aac',accent:'#87c86a'},
+  {x:500,y:735,w:220,h:130,kind:'conveni',label:'駅前コンビニ',sign:'24 MART',color:'#f5f1df',accent:'#3aa76d'},
+  {x:805,y:640,w:210,h:122,kind:'cowork',label:'コワーキング',sign:'WORK POD',color:'#6f85a8',accent:'#6ee7ff'},
+  {x:1240,y:700,w:220,h:136,kind:'clinic',label:'青葉クリニック',sign:'AOBA CLINIC',color:'#c7d8e8',accent:'#5fb4ff'},
+  {x:210,y:1045,w:220,h:132,kind:'warehouse',label:'文具店の倉庫',sign:'HOSHINO STORAGE',color:'#9c9286',accent:'#ffc14d'},
+  {x:720,y:1085,w:210,h:124,kind:'bakery',label:'ベーカリー&デリ',sign:'BAKERY DELI',color:'#d69b73',accent:'#ef5d5d'},
+  {x:1190,y:1105,w:230,h:140,kind:'apartment',label:'駅前マンション',sign:'SUNRISE COURT',color:'#9aa4b1',accent:'#4f6f91'},
+];
+let CUSTOM_LAYERS=[];
+let CUSTOM_TILE_MAP=null;
+let CUSTOM_TILE_PROPS=[];
+const TOWN_LAYOUT_KEY='aono-tantei-town-layout-v1';
+const TOWN_EDITOR_KEY='aono-tantei-town-editor-v1';
+const TOWN_TILE_KEY='aono-tantei-town-tilemap-v1';
+const DEFAULT_BUILDING_LAYOUT=BUILDINGS.map(b=>({label:b.label,x:b.x,y:b.y}));
+const EDIT={enabled:false,drag:null,selected:null};
+function loadTownLayout(){
+  try{
+    const tileMap=JSON.parse(localStorage.getItem(TOWN_TILE_KEY)||'null');
+    if(tileMap?.type==='town-tile-map'&&Array.isArray(tileMap.tiles)){
+      CUSTOM_TILE_MAP=tileMap;
+      const size=Number(tileMap.tileSize)||48;
+      WORLD.w=Math.max(VIEW.w||420,(Number(tileMap.cols)||28)*size);
+      WORLD.h=Math.max(VIEW.h||800,(Number(tileMap.rows)||22)*size);
+      const objects=tileMap.objects||[];
+      BUILDINGS.splice(0,BUILDINGS.length,...objects.filter(o=>(o.category||'building')!=='prop').map(o=>({
+        x:(Number(o.gx)||0)*size+(Number(o.w)||3)*size/2,
+        y:(Number(o.gy)||0)*size+(Number(o.h)||3)*size,
+        w:(Number(o.w)||3)*size,
+        h:(Number(o.h)||3)*size,
+        rot:Number(o.rotation)||0,
+        kind:o.kind||'building',
+        label:o.label||'建物',
+        sign:o.label||'',
+        asset:o.asset||'',
+        color:'#9aa4b1',
+        accent:'#ffbd54',
+        entrance:o.entrance||null,
+        to:o.to||''
+      })));
+      CUSTOM_TILE_PROPS=objects.filter(o=>o.category==='prop').map(o=>({
+        type:o.kind||'planter',label:o.label||'街パーツ',asset:o.asset||'',
+        x:(Number(o.gx)||0)*size+(Number(o.w)||1)*size/2,
+        y:(Number(o.gy)||0)*size+(Number(o.h)||1)*size,
+        w:(Number(o.w)||1)*size,h:(Number(o.h)||1)*size,
+        rot:Number(o.rotation)||0
+      }));
+      return;
+    }
+    const editor=JSON.parse(localStorage.getItem(TOWN_EDITOR_KEY)||'null');
+    if(editor?.layers&&Array.isArray(editor.layers)){
+      CUSTOM_LAYERS=editor.layers.map(l=>({
+        x:Number(l.x)||100,
+        y:Number(l.y)||100,
+        w:Number(l.w)||120,
+        h:Number(l.h)||260,
+        rot:Number(l.rot)||0,
+        kind:l.kind||'road',
+        label:l.label||'道',
+        category:l.category,
+        color:l.color||'#d8ccb4',
+        accent:l.accent||'#fff0bb'
+      }));
+    }
+    if(editor?.buildings&&Array.isArray(editor.buildings)){
+      BUILDINGS.splice(0,BUILDINGS.length,...editor.buildings.map(b=>({
+        x:Number(b.x)||100,
+        y:Number(b.y)||100,
+        w:Number(b.w)||190,
+        h:Number(b.h)||118,
+        rot:Number(b.rot)||0,
+        kind:b.kind||'shop',
+        label:b.label||'建物',
+        sign:b.sign||b.label||'SHOP',
+        asset:b.asset||'',
+        color:b.color||'#9aa4b1',
+        accent:b.accent||'#ffbd54'
+      })));
+      return;
+    }
+    const saved=JSON.parse(localStorage.getItem(TOWN_LAYOUT_KEY)||'null');
+    if(!Array.isArray(saved))return;
+    for(const item of saved){
+      const b=BUILDINGS.find(x=>x.label===item.label);
+      if(b&&Number.isFinite(item.x)&&Number.isFinite(item.y)){
+        b.x=Math.max(24,Math.min(WORLD.w-24,item.x));
+        b.y=Math.max(35,Math.min(WORLD.h-18,item.y));
+      }
+    }
+  }catch(err){ console.warn('town layout load failed',err); }
+}
+function saveTownLayout(){
+  const payload=BUILDINGS.map(b=>({label:b.label,x:Math.round(b.x),y:Math.round(b.y)}));
+  localStorage.setItem(TOWN_LAYOUT_KEY,JSON.stringify(payload));
+}
+function resetTownLayout(){
+  for(const item of DEFAULT_BUILDING_LAYOUT){
+    const b=BUILDINGS.find(x=>x.label===item.label);
+    if(b){ b.x=item.x; b.y=item.y; }
+  }
+  localStorage.removeItem(TOWN_LAYOUT_KEY);
+  EDIT.drag=null; EDIT.selected=null;
+  updateDevStats();
+  showToast('街の配置を初期状態に戻しました');
+}
+function toggleTownEdit(){
+  EDIT.enabled=!EDIT.enabled;
+  EDIT.drag=null;
+  $('townEditBtn').textContent=EDIT.enabled?'街編集ON':'街編集OFF';
+  $('townEditBtn').classList.toggle('active',EDIT.enabled);
+  $('objective').textContent=EDIT.enabled?'街編集モード：建物をドラッグして配置調整':'紅音と一緒に、星野文具店を調べる';
+  updateDevStats();
+}
+function editableBuildingAt(w){
+  return [...BUILDINGS].reverse().find(b=>Math.abs(w.x-b.x)<b.w/2&&w.y<b.y+18&&w.y>b.y-b.h-18);
+}
+loadTownLayout();
+const NPCS=[
+  {x:610,y:930,img:'boy',h:55,label:'商店街の男の子',portrait:'boyPortrait',line:'あっちのお店、今日はずっと裏口が開いてるよ。'},
+  {x:900,y:900,img:'tadokoro',h:64,label:'田所くん',portrait:'boyPortrait',line:'星野さんの店？　さっき、知らない人を見た気がする。'},
+  {x:860,y:690,img:'grandma',h:61,label:'町のおばあちゃん',portrait:'boyPortrait',line:'夕方は足元に気をつけるんだよ。影が長くなるからね。'},
+];
+const PROPS=[
+  {type:'lamp',x:560,y:480},{type:'lamp',x:900,y:500},{type:'lamp',x:1080,y:650},
+  {type:'lamp',x:570,y:900},{type:'lamp',x:1020,y:1010},
+  {type:'vending',x:690,y:430},{type:'bike',x:735,y:445},{type:'cone',x:785,y:390},
+  {type:'bench',x:760,y:560},{type:'planter',x:570,y:590},{type:'planter',x:940,y:585},
+  {type:'vending',x:1090,y:720},{type:'bike',x:1125,y:730},{type:'sign',x:880,y:760},
+  {type:'bench',x:380,y:925},{type:'planter',x:840,y:970},{type:'crate',x:1280,y:930},
+  {type:'barrel',x:1310,y:940},{type:'sign',x:610,y:1180},{type:'planter',x:980,y:1210},
+];
+const LIGHTS=PROPS.filter(p=>p.type==='lamp');
+const P={x:760,y:830,tx:760,ty:830,moving:false,dir:'down',speed:.15,bob:0,stuck:0};
+const COMP={x:710,y:865,tx:710,ty:865,moving:false,dir:'down',bob:0};
+const TAP={x:760,y:830,visible:false,age:0,alpha:0};
+const cam={x:0,y:0};
+let dialogueOpen=false;
+let dialogueQueue=[];
+let storyStarted=false;
+const GAME={clueFound:false,toastUntil:0,arrivalPulse:0};
+const INTERIOR={active:false,building:null,cooldownUntil:0};
+const INTERIOR_INFO={
+  hoshino_stationery:{title:'星野文具店',hint:'古い文具が並ぶ店内。棚やレジ、奥の作業場を調査できる室内マップへつながります。'},
+  aota_room:{title:'青太のアパート',hint:'青太の生活拠点。手紙や万年筆を確認し、集めた手がかりを整理できる部屋です。'},
+  karaage_shop:{title:'橙ヶ丘からあげ店',hint:'揚げたての匂いが満ちる店内。店主や町の人から噂を聞けそうです。'},
+  school:{title:'橙ヶ丘学園',hint:'教室、廊下、職員室へ分かれる学校内マップへつながります。'},
+  station:{title:'橙ヶ丘駅',hint:'改札、ホーム、駅前案内所を調べられる駅構内マップへつながります。'}
+};
+function entranceBuildingAtPlayer(){
+  if(!CUSTOM_TILE_MAP||INTERIOR.active||performance.now()<INTERIOR.cooldownUntil)return null;
+  const size=Number(CUSTOM_TILE_MAP.tileSize)||48;
+  return BUILDINGS.find(b=>b.entrance&&Math.abs(P.x-(Number(b.entrance.gx)+.5)*size)<size*.38&&Math.abs(P.y-(Number(b.entrance.gy)+.5)*size)<size*.38)||null;
+}
+function enterBuilding(building){
+  if(!building||INTERIOR.active)return;
+  INTERIOR.active=true;INTERIOR.building=building;P.moving=false;TAP.visible=false;
+  const info=INTERIOR_INFO[building.to]||{title:building.label||'建物内',hint:'この建物の室内探索マップをここへつなげられます。'};
+  $('interiorView').dataset.to=building.to||building.kind||'';
+  $('interiorTitle').textContent=info.title;
+  $('interiorHint').textContent=info.hint;
+  $('interiorView').classList.add('show');$('interiorView').setAttribute('aria-hidden','false');
+  $('near').style.display='none';
+}
+function exitInterior(){
+  const building=INTERIOR.building,size=Number(CUSTOM_TILE_MAP?.tileSize)||48;
+  $('interiorView').classList.remove('show');$('interiorView').setAttribute('aria-hidden','true');
+  INTERIOR.active=false;INTERIOR.building=null;INTERIOR.cooldownUntil=performance.now()+900;
+  if(building?.entrance){P.x=(Number(building.entrance.gx)+.5)*size;P.y=(Number(building.entrance.gy)+1.2)*size;P.tx=P.x;P.ty=P.y;COMP.x=P.x-42;COMP.y=P.y+30;}
+  showToast('街へ戻りました');
+}
+function checkBuildingEntrance(){
+  const building=entranceBuildingAtPlayer();
+  if(building)enterBuilding(building);
+}
+$('exitInteriorBtn').addEventListener('click',exitInterior);
+const STORY_STEPS=[
+  {bg:'train',face:'basic',narration:true,label:'橙ヶ丘へ向かう電車',speaker:'',text:'がたん、ごとん。\n知らない町へ向かう電車の音だけが、ずっと続いている。'},
+  {bg:'train',face:'serious',focus:'letter',label:'橙ヶ丘へ向かう電車',speaker:'明智 青太',text:'……三回、読み返した。\nでもやっぱり、差出人の名前はない。'},
+  {bg:'train',face:'serious',focus:'letter',label:'差出人のない手紙',speaker:'手紙',text:'「君の過去を知りたければ、橙ヶ丘へ来なさい」'},
+  {bg:'train',face:'serious',focus:'letter',label:'差出人のない手紙',speaker:'手紙',text:'「同封したものが、最初の手がかりになる」'},
+  {bg:'train',face:'serious',focus:'pen',label:'古い万年筆',speaker:'明智 青太',text:'古い万年筆の軸に、小さく文字が刻まれている。\n……星野文具店。'},
+  {bg:'train',face:'basic',focus:'pen',label:'古い万年筆',speaker:'明智 青太',text:'聞いたことがある、気がする。\n……いや。気がするだけ、か。'},
+  {bg:'train',face:'basic',focus:'pen',label:'古い万年筆',speaker:'明智 青太',text:'まずは、そのお店を探してみるか。'},
+  {bg:'train',face:'serious',label:'橙ヶ丘へ向かう電車',speaker:'明智 青太',text:'両親のことも、小さい頃のことも、思い出そうとすると……そこだけ、ぽっかり穴が空いている。'},
+  {bg:'train',face:'basic',label:'橙ヶ丘へ向かう電車',speaker:'明智 青太',text:'それでも、不思議と怖くはなかった。\n怖いより先に、知りたいと思った。'},
+  {bg:'train',face:'basic',label:'車内アナウンス',speaker:'アナウンス',text:'まもなく、橙ヶ丘。橙ヶ丘です。\nお降りのお客様は、お忘れ物のないようご注意ください。'},
+  {bg:'train',face:'surprised',memory:true,label:'記憶のかけら',speaker:'？？？',text:'――くん、こっち！'},
+  {bg:'train',face:'surprised',memory:true,label:'橙ヶ丘へ向かう電車',speaker:'明智 青太',text:'……今の、声。'},
+  {bg:'train',face:'serious',label:'橙ヶ丘へ向かう電車',speaker:'明智 青太',text:'この街に、僕の過去の手がかりがあるはず。'},
+  {bg:'apartment',apt:'station',face:'basic',label:'橙ヶ丘駅前',speaker:'明智 青太',text:'駅から徒歩七分。二階の角部屋。'},
+  {bg:'apartment',apt:'station',face:'serious',label:'橙ヶ丘駅前',speaker:'明智 青太',text:'……ここまで書いてあるんだ。'},
+  {bg:'apartment',apt:'station',face:'serious',label:'橙ヶ丘駅前',speaker:'明智 青太',text:'親切、って言えば親切だけど。\n僕が迷うところまで、先に知っていたみたいだ。'},
+  {bg:'apartment',apt:'building',face:'basic',label:'駅前のワンルームアパート',speaker:'明智 青太',text:'普通の、ワンルームアパート。\n古すぎず、新しすぎず。学生が一人で暮らすには、ちょうどよさそうな部屋。'},
+  {bg:'apartment',apt:'mailbox',face:'surprised',label:'駅前のワンルームアパート',speaker:'明智 青太',text:'……僕の名前が、もうある。'},
+  {bg:'apartment',apt:'room',face:'serious',label:'二階の角部屋',speaker:'明智 青太',text:'布団。机。カーテン。歯ブラシまで。'},
+  {bg:'apartment',apt:'room',face:'serious',label:'二階の角部屋',speaker:'明智 青太',text:'初めて来た部屋なのに、僕が住む準備だけは終わってる。'},
+  {bg:'apartment',apt:'room',face:'serious',label:'二階の角部屋',speaker:'明智 青太',text:'知らない人に、僕の明日を先に並べられているみたいだ。'},
+  {bg:'apartment',apt:'desk',face:'serious',label:'机の上の封筒',speaker:'メモ',text:'「明日から、橙ヶ丘学園へ行きなさい」\n「二年一組。必要な手続きは済ませてある」'},
+  {bg:'apartment',apt:'desk',face:'surprised',label:'机の上の封筒',speaker:'明智 青太',text:'学校まで……決まってる。'},
+  {bg:'apartment',apt:'karaage',face:'basic',label:'二階の角部屋',speaker:'明智 青太',text:'……からあげ？'},
+  {bg:'apartment',apt:'karaage',face:'basic',label:'二階の角部屋',speaker:'明智 青太',text:'この町、夕方になると、空気まで揚げ物になるのかな。'},
+  {bg:'apartment',apt:'desk',face:'serious',focus:'pen',label:'二階の角部屋',speaker:'明智 青太',text:'両親のこと。小さい頃のこと。\n僕が忘れているもの。'},
+  {bg:'apartment',apt:'window',face:'serious',label:'二階の角部屋',speaker:'明智 青太',text:'……明日から、ここで始めるんだ。'},
+  {bg:'school',label:'翌日・橙ヶ丘学園',speaker:'先生',text:'今日からこのクラスに入る、明智青太くんです。みんな、仲良くしてあげてね。'},
+  {bg:'school',label:'翌日・橙ヶ丘学園',speaker:'明智 青太',text:'明智青太です。えっと……この街、唐揚げの匂い、強くないですか？'},
+  {bg:'school',label:'翌日・橙ヶ丘学園',speaker:'栗栖 紅音',text:'唐揚げで有名な街だからね〜。でも転校初日の第一声がそれなの、けっこう強いよ。'},
+  {bg:'school',label:'翌日・橙ヶ丘学園',speaker:'明智 青太',text:'駅に着いた瞬間から、匂いに尾行されてる気がして。'},
+  {bg:'school',label:'翌日・橙ヶ丘学園',speaker:'栗栖 紅音',text:'それ、ただお腹すいてるだけじゃない？'},
+  {bg:'case',label:'教室の小さな事件',speaker:'田所くん',text:'先生の出席簿がない！さっきまで教卓にあったのに！'},
+  {bg:'case',label:'教室の小さな事件',speaker:'明智 青太',text:'窓は閉まってる。教卓の端に白いチョークの粉。あと、床に薄い引きずり跡。'},
+  {bg:'case',label:'教室の小さな事件',speaker:'明智 青太',text:'出席簿は盗まれたんじゃなくて、黒板消しのケースの下。先生、さっき慌てて置きましたね？'},
+  {bg:'case',label:'教室の小さな事件',speaker:'先生',text:'あ……本当だ。ごめんなさい、明智くん。すごい観察力ね。'},
+  {bg:'case',label:'教室の小さな事件',speaker:'栗栖 紅音',text:'変な転校生だと思ったけど……ちょっとだけ見直したかも。'},
+  {bg:'school',label:'放課後・教室',speaker:'先生',text:'栗栖さん、明智くんに街を案内してあげてくれる？転校してきたばかりだし。'},
+  {bg:'school',label:'放課後・教室',speaker:'栗栖 紅音',text:'えっ、私ですか？……まあ、いいですけど。案内係、ですね。'},
+  {bg:'town',label:'放課後・橙ヶ丘の街',speaker:'栗栖 紅音',text:'まずは商店街。あそこが星野文具店。昔からある、町の文房具屋さん。'},
+  {bg:'town',label:'放課後・橙ヶ丘の街',speaker:'明智 青太',text:'星野文具店……。この万年筆の刻印と、同じ名前だ。'},
+  {bg:'town',label:'放課後・橙ヶ丘の街',speaker:'栗栖 紅音',text:'え？ どういう……待って。今、店の前から誰か走って出てこなかった？'}
+];
+let storyIndex=0;
+
+function blocked(x,y){
+  if(x<24||x>WORLD.w-24||y<35||y>WORLD.h-18) return true;
+  for(const b of BUILDINGS){ if(Math.abs(x-b.x)<b.w/2&&y<b.y+8&&y>b.y-b.h*.72)return true; }
+  for(const p of [...PROPS,...CUSTOM_TILE_PROPS]){ if(Math.hypot(x-p.x,y-p.y)<(p.type==='bench'||p.type==='bus_stop'?38:21))return true; }
+  return false;
+}
+
+function toWorld(cx,cy){
+  const r=cv.getBoundingClientRect();
+  return{x:cam.x+(cx-r.left)/r.width*VIEW.w,y:cam.y+(cy-r.top)/r.height*VIEW.h};
+}
+
+cv.addEventListener('pointerdown',e=>{
+  if(!storyStarted)return;
+  if(INTERIOR.active)return;
+  if(dialogueOpen){ advanceDialogue(); return; }
+  const w=toWorld(e.clientX,e.clientY);
+  if(EDIT.enabled){
+    const b=editableBuildingAt(w);
+    if(b){
+      EDIT.selected=b;
+      EDIT.drag={building:b,dx:b.x-w.x,dy:b.y-w.y};
+      P.moving=false;
+      cv.setPointerCapture?.(e.pointerId);
+      updateDevStats();
+    }
+    return;
+  }
+  if(Math.hypot(w.x-COMP.x,w.y-COMP.y)<46&&Math.hypot(P.x-COMP.x,P.y-COMP.y)<130){
+    showDialogue({
+      label:'栗栖 紅音',
+      portrait:GAME.clueFound?'portrait_akane_jito':'portrait_akane_basic',
+      line:GAME.clueFound?'今のメモ、ただの買い物リストじゃないね。青太、文具店の裏も見よう。':'青太、星野文具店の前まで行ってみよ。静かすぎるの、ちょっと変。'
+    });
+    return;
+  }
+  const npc=NPCS.find(n=>Math.hypot(w.x-n.x,w.y-n.y)<44&&Math.hypot(P.x-n.x,P.y-n.y)<125);
+  if(npc){ showDialogue(npc); return; }
+  const shop=nearShop();
+  if(shop?.kind==='stationery'&&Math.hypot(w.x-shop.x,w.y-shop.y)<110){
+    inspectStationery();
+    return;
+  }
+  P.tx=Math.max(24,Math.min(WORLD.w-24,w.x)); P.ty=Math.max(35,Math.min(WORLD.h-18,w.y));
+  P.moving=true; P.stuck=0; TAP.x=P.tx; TAP.y=P.ty; TAP.visible=true; TAP.age=0; TAP.alpha=1.15; GAME.arrivalPulse=0;
+});
+
+cv.addEventListener('pointermove',e=>{
+  if(!EDIT.enabled||!EDIT.drag)return;
+  const w=toWorld(e.clientX,e.clientY);
+  const b=EDIT.drag.building;
+  b.x=Math.max(40,Math.min(WORLD.w-40,w.x+EDIT.drag.dx));
+  b.y=Math.max(80,Math.min(WORLD.h-20,w.y+EDIT.drag.dy));
+  updateDevStats();
+});
+
+cv.addEventListener('pointerup',e=>{
+  if(!EDIT.drag)return;
+  saveTownLayout();
+  showToast(`配置を保存：${EDIT.drag.building.label}`);
+  EDIT.drag=null;
+  cv.releasePointerCapture?.(e.pointerId);
+  updateDevStats();
+});
+
+cv.addEventListener('pointercancel',e=>{
+  if(!EDIT.drag)return;
+  saveTownLayout();
+  EDIT.drag=null;
+  cv.releasePointerCapture?.(e.pointerId);
+  updateDevStats();
+});
+
+function showDialogue(npc){
+  dialogueOpen=true; P.moving=false;
+  dialogueQueue=(npc.lines||[]).slice();
+  presentDialogue(npc);
+}
+function presentDialogue(npc){
+  drawPortrait(npc.portrait); $('speaker').textContent=npc.label; $('line').textContent=npc.line;
+  $('dialogue').classList.add('show');
+}
+function advanceDialogue(){
+  if(dialogueQueue.length){ presentDialogue(dialogueQueue.shift()); return; }
+  hideDialogue();
+}
+function hideDialogue(){ dialogueOpen=false; dialogueQueue=[]; $('dialogue').classList.remove('show'); }
+
+function renderStoryStep(){
+  const step=STORY_STEPS[storyIndex];
+  if(!step){ finishStoryIntro(); return; }
+  $('storyIntro').dataset.bg=step.bg||'';
+  $('storyIntro').dataset.focus=step.focus||'';
+  $('storyIntro').dataset.memory=step.memory?'1':'0';
+  $('storyIntro').dataset.apt=step.apt||'';
+  $('storyIntro').dataset.narration=step.narration?'1':'0';
+  $('storyBg').className=step.bg;
+  $('storyLabel').textContent=step.label;
+  $('storySpeaker').textContent=step.speaker;
+  $('storyText').textContent=step.text;
+  const face=step.face||'basic';
+  $('storyCharacter').src=`assets/portraits/aota_${face}.png${V}`;
+}
+function advanceStory(){
+  storyIndex++;
+  renderStoryStep();
+}
+function finishStoryIntro(){
+  storyStarted=true;
+  $('storyIntro').classList.remove('show');
+  $('objective').textContent='紅音と一緒に、星野文具店を調べる';
+  showToast('第1話：星野文具店へ');
+  setTimeout(()=>showDialogue({
+    label:'栗栖 紅音',
+    portrait:'portrait_akane_surprised',
+    line:'今の人、星野文具店から出てきたよね？ 青太、行ってみよう。'
+  }),280);
+}
+$('storyIntro').addEventListener('pointerdown',advanceStory);
+
+function showToast(text){
+  const toast=$('rewardToast');
+  toast.textContent=text;
+  toast.classList.add('show');
+  GAME.toastUntil=performance.now()+2100;
+}
+
+function inspectStationery(){
+  if(GAME.clueFound){
+    showDialogue({label:'栗栖 紅音',portrait:'portrait_akane_jito',line:'手がかりはもう拾ったよ。次は、このメモが誰のものか調べよ。'});
+    return;
+  }
+  GAME.clueFound=true;
+  $('objective').textContent='文具店事件の手がかりを集める';
+  showToast('事件発生：星野文具店から走り去る影');
+  showDialogue({
+    label:'明智 青太',
+    portrait:'portrait_aota_serious',
+    line:'入口の隙間に、青いインクのメモ……。ただの落とし物、ではなさそうだ。',
+    lines:[
+      {label:'栗栖 紅音',portrait:'portrait_akane_surprised',line:'おばあちゃん！ 大丈夫！？'},
+      {label:'星野のおばあちゃん',portrait:'portrait_akane_basic',line:'レジのお金と……古い写真が、一枚なくなってるんだよ。'},
+      {label:'明智 青太',portrait:'portrait_aota_serious',line:'古い写真……。お金より、そっちが本命かもしれない。'}
+    ]
+  });
+}
+
+function drawPortrait(name){
+  const canvas=$('portrait'),pctx=canvas.getContext('2d'),img=IMG[name];
+  if(name?.startsWith('character:')){
+    const char=CHARACTERS[name.slice('character:'.length)];
+    drawPortraitImage(char?.portrait);
+    return;
+  }
+  drawPortraitImage(img);
+}
+
+function drawPortraitImage(img){
+  const canvas=$('portrait'),pctx=canvas.getContext('2d');
+  if(!img)return;
+  const render=()=>{
+    pctx.clearRect(0,0,canvas.width,canvas.height);setupQuality(pctx);
+    const sw=img.naturalWidth,sh=img.naturalHeight,sy=0;
+    const scale=Math.min(canvas.width/sw*1.16,canvas.height/sh*.97);
+    const dw=sw*scale,dh=sh*scale;
+    pctx.save();
+    pctx.drawImage(img,0,sy,sw,sh,(canvas.width-dw)/2-4,canvas.height-dh+2,dw,dh);
+    pctx.restore();
+  };
+  if(img?.complete&&img.naturalWidth)render();else if(img)img.addEventListener('load',render,{once:true});
+}
+
+let last=null;
+function frame(ts){
+  if(last==null)last=ts; const dt=Math.min(40,ts-last); last=ts;
+  if(P.moving){
+    const dx=P.tx-P.x,dy=P.ty-P.y,d=Math.hypot(dx,dy),step=P.speed*dt;
+    if(d<=step){P.x=P.tx;P.y=P.ty;P.moving=false;}
+    else{
+      const ox=P.x,oy=P.y,nx=P.x+dx/d*step,ny=P.y+dy/d*step;
+      if(!blocked(nx,P.y))P.x=nx; if(!blocked(P.x,ny))P.y=ny; P.bob+=dt;
+      if(Math.abs(dx)>Math.abs(dy))P.dir=dx<0?'left':'right'; else P.dir=dy<0?'up':'down';
+      if(Math.hypot(P.x-ox,P.y-oy)<.35){if(++P.stuck>6){P.moving=false;P.stuck=0;}}else P.stuck=0;
+    }
+  }else if(GAME.arrivalPulse<260){
+    GAME.arrivalPulse+=dt;
+  }
+  updateCompanion(dt);
+  if(TAP.visible){TAP.age+=dt;if(!P.moving){TAP.alpha=Math.max(0,TAP.alpha-dt/220);if(!TAP.alpha)TAP.visible=false;}}
+  if(GAME.toastUntil&&performance.now()>GAME.toastUntil){$('rewardToast').classList.remove('show');GAME.toastUntil=0;}
+  cam.x=Math.max(0,Math.min(WORLD.w-VIEW.w,P.x-VIEW.w/2));
+  cam.y=Math.max(0,Math.min(WORLD.h-VIEW.h,P.y-VIEW.h/2));
+  ctx.clearRect(0,0,VIEW.w,VIEW.h); drawGround(); drawTileMap(); drawCustomLayers();
+  const drawables=[
+    ...BUILDINGS.map(b=>({type:'b',y:b.y,data:b})),
+    ...[...PROPS,...CUSTOM_TILE_PROPS].map(p=>({type:'prop',y:p.y,data:p})),
+    ...NPCS.map(n=>({type:'npc',y:n.y,data:n})),
+    {type:'companion',y:COMP.y},
+    {type:'player',y:P.y}
+  ].sort((a,b)=>a.y-b.y);
+  for(const d of drawables){
+    if(d.type==='b')drawBuilding(d.data); else if(d.type==='prop')drawProp(d.data);
+    else if(d.type==='npc')drawNpc(d.data); else if(d.type==='companion')drawCompanion();
+    else drawPlayer(P.moving?Math.sin(P.bob/90)*2:0);
+  }
+  drawLighting(); drawTapMarker(); checkBuildingEntrance(); updateNear(); requestAnimationFrame(frame);
+}
+
+function companionOffset(){
+  if(P.dir==='up')return{x:38,y:66,dir:'up'};
+  if(P.dir==='left')return{x:64,y:34,dir:'left'};
+  if(P.dir==='right')return{x:-64,y:34,dir:'right'};
+  return{x:-44,y:-62,dir:'down'};
+}
+
+function updateCompanion(dt){
+  const off=companionOffset();
+  COMP.tx=Math.max(24,Math.min(WORLD.w-24,P.x+off.x));
+  COMP.ty=Math.max(35,Math.min(WORLD.h-18,P.y+off.y));
+  const dx=COMP.tx-COMP.x,dy=COMP.ty-COMP.y,d=Math.hypot(dx,dy);
+  COMP.moving=d>4;
+  if(COMP.moving){
+    const step=Math.min(d,.105*dt);
+    COMP.x+=dx/d*step; COMP.y+=dy/d*step; COMP.bob+=dt;
+    if(Math.abs(dx)>Math.abs(dy))COMP.dir=dx<0?'left':'right'; else COMP.dir=dy<0?'up':'down';
+  }else{
+    COMP.dir=off.dir;
+  }
+}
+
+function drawGround(){
+  ctx.fillStyle='#c9b28f';ctx.fillRect(0,0,VIEW.w,VIEW.h);
+  ctx.save();
+  ctx.fillStyle='rgba(70,78,86,.42)';
+  for(let y=-cam.y%360-150;y<VIEW.h;y+=360){
+    ctx.fillRect(0,y+136,VIEW.w,88);
+    ctx.fillStyle='rgba(255,255,255,.42)';
+    for(let x=-cam.x%220;x<VIEW.w;x+=220)ctx.fillRect(x,y+178,72,4);
+    ctx.fillStyle='rgba(70,78,86,.42)';
+  }
+  ctx.restore();
+  ctx.fillStyle='rgba(245,238,221,.20)';ctx.fillRect(0,0,VIEW.w,VIEW.h);
+  ctx.strokeStyle='rgba(80,85,92,.18)';ctx.lineWidth=1;
+  for(let y=(-cam.y%40);y<VIEW.h;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VIEW.w,y);ctx.stroke();}
+  ctx.strokeStyle='rgba(80,85,92,.10)';
+  for(let x=(-cam.x%40);x<VIEW.w;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VIEW.h);ctx.stroke();}
+}
+
+function drawCustomLayers(){
+  for(const l of [...CUSTOM_LAYERS].sort((a,b)=>townLayerRank(a)-townLayerRank(b)))drawTownLayer(l);
+}
+
+function drawTileMap(){
+  if(!CUSTOM_TILE_MAP)return;
+  const m=CUSTOM_TILE_MAP,size=Number(m.tileSize)||48;
+  const colors={
+    concrete:['#b8b8ad','#e4e0d3'],
+    sidewalk:['#c9c5bb','#f2eee3'],
+    road:['#777e87','#f0d98a'],
+    crosswalk:['#6f747b','#f7f6ed'],
+    parking:['#858a8d','#e9edf0'],
+    shopping_road:['#caa878','#ffe0a2'],
+    dirt:['#a6794f','#d2a06d'],
+    gravel:['#9e978b','#d2ccc2'],
+    grass:['#6fa95e','#b9dc72'],
+    flower:['#66a75c','#f5a5bb'],
+    weeds:['#567d48','#a7cf68'],
+    river:['#72c3e7','#d8f5ff'],
+    wall:['#3c4653','#202833']
+  };
+  for(let gy=0;gy<m.rows;gy++){
+    for(let gx=0;gx<m.cols;gx++){
+      const id=m.tiles?.[gy*m.cols+gx]||m.defaultTile||'grass';
+      const x=Math.round(gx*size-cam.x),y=Math.round(gy*size-cam.y);
+      if(x+size<0||y+size<0||x>VIEW.w||y>VIEW.h)continue;
+      const c=colors[id]||colors.grass;
+      ctx.fillStyle=c[0];ctx.fillRect(x,y,size,size);
+      if(id==='concrete'||id==='sidewalk'){
+        ctx.strokeStyle='rgba(255,255,255,.13)';ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,size-1,size-1);
+        if(id==='sidewalk'){ctx.strokeStyle='rgba(70,72,75,.15)';ctx.beginPath();ctx.moveTo(x+size*.5,y);ctx.lineTo(x+size*.5,y+size);ctx.moveTo(x,y+size*.5);ctx.lineTo(x+size,y+size*.5);ctx.stroke();}
+      }else if(id==='road'||id==='shopping_road'||id==='parking'){
+        ctx.fillStyle='rgba(255,255,255,.10)';ctx.fillRect(x+size*.12,y+size*.12,size*.76,size*.76);
+        ctx.strokeStyle=c[1];ctx.lineWidth=2;ctx.setLineDash([10,8]);ctx.beginPath();ctx.moveTo(x+size*.5,y+size*.18);ctx.lineTo(x+size*.5,y+size*.82);ctx.stroke();ctx.setLineDash([]);
+      }else if(id==='crosswalk'){
+        ctx.fillStyle=c[1];for(let i=0;i<4;i++)ctx.fillRect(x+size*.10,y+size*(.12+i*.22),size*.80,size*.10);
+      }else if(id==='river'){
+        ctx.fillStyle='rgba(255,255,255,.22)';ctx.beginPath();ctx.ellipse(x+size*.35,y+size*.45,size*.20,size*.04,0,0,Math.PI*2);ctx.fill();
+      }else if(id==='grass'||id==='weeds'||id==='flower'){
+        ctx.strokeStyle=c[1];ctx.lineWidth=1.5;for(let i=0;i<3;i++){const ox=((gx*17+gy*11+i*19)%32)/32*size,oy=((gx*13+gy*23+i*7)%30)/30*size;ctx.beginPath();ctx.moveTo(x+ox,y+oy+size*.15);ctx.lineTo(x+ox+size*.08,y+oy-size*.05);ctx.stroke();}
+        if(id==='flower'){ctx.fillStyle='#ffe38a';for(let i=0;i<3;i++){const ox=((gx*11+gy*17+i*13)%34)/34*size,oy=((gx*7+gy*19+i*9)%30)/30*size;ctx.beginPath();ctx.arc(x+ox,y+oy,2,0,Math.PI*2);ctx.fill();}}
+      }else if(id==='dirt'||id==='gravel'){
+        ctx.fillStyle='rgba(70,39,20,.18)';ctx.beginPath();ctx.ellipse(x+size*.35,y+size*.42,size*.06,size*.03,0,0,Math.PI*2);ctx.ellipse(x+size*.70,y+size*.67,size*.05,size*.025,0,0,Math.PI*2);ctx.fill();
+      }
+    }
+  }
+}
+
+function townLayerRank(l){
+  const c=l.category||(l.kind==='concrete'||l.kind==='dirt'||l.kind==='grass'||l.kind==='weeds'?'surface':l.kind==='bridge'?'bridge':l.kind==='river'?'water':'path');
+  return c==='surface'?0:c==='water'?1:c==='path'?2:3;
+}
+
+function drawTownLayer(l){
+  const x=Math.round(l.x-cam.x),y=Math.round(l.y-cam.y),w=l.w,h=l.h;
+  if(x+w<0||x-w>VIEW.w||y+h<0||y-h>VIEW.h)return;
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate((l.rot||0)*Math.PI/180);
+  ctx.globalAlpha=.96;
+  if(l.category==='surface'||['concrete','dirt','grass','weeds'].includes(l.kind)){
+    roundRect(-w/2,-h/2,w,h,18,l.color||'#7fa65f');
+    if(l.kind==='concrete'){
+      ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=1;
+      for(let xx=-w/2+42;xx<w/2;xx+=42){ctx.beginPath();ctx.moveTo(xx,-h/2);ctx.lineTo(xx,h/2);ctx.stroke();}
+      for(let yy=-h/2+42;yy<h/2;yy+=42){ctx.beginPath();ctx.moveTo(-w/2,yy);ctx.lineTo(w/2,yy);ctx.stroke();}
+    }else if(l.kind==='dirt'){
+      ctx.fillStyle='rgba(70,39,20,.22)';
+      for(let i=0;i<32;i++){ctx.beginPath();ctx.ellipse(Math.sin(i*8.1)*w*.46,Math.cos(i*5.7)*h*.44,3,1.6,0,0,Math.PI*2);ctx.fill();}
+    }else{
+      ctx.strokeStyle=l.accent||'#a7cf68';ctx.lineWidth=2;
+      for(let i=0;i<28;i++){const gx=Math.sin(i*6.4)*w*.45,gy=Math.cos(i*4.9)*h*.42;ctx.beginPath();ctx.moveTo(gx,gy+5);ctx.lineTo(gx+Math.sin(i)*8,gy-7);ctx.stroke();}
+    }
+  }else if(l.kind==='river'){
+    roundRect(-w/2,-h/2,w,h,28,l.color||'#83c8e8');
+    ctx.strokeStyle=l.accent||'#d8f5ff';ctx.lineWidth=3;ctx.setLineDash([24,18]);
+    ctx.beginPath();ctx.moveTo(0,-h/2+18);ctx.lineTo(0,h/2-18);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,255,255,.22)';
+    for(let yy=-h/2+38;yy<h/2;yy+=72){ctx.beginPath();ctx.ellipse(-w*.18,yy,w*.18,5,0,0,Math.PI*2);ctx.fill();}
+  }else if(l.kind==='rail'){
+    roundRect(-w/2,-h/2,w,h,4,l.color||'#6b7078');
+    ctx.strokeStyle='#30343a';ctx.lineWidth=4;
+    ctx.beginPath();ctx.moveTo(-w*.28,-h/2);ctx.lineTo(-w*.28,h/2);ctx.moveTo(w*.28,-h/2);ctx.lineTo(w*.28,h/2);ctx.stroke();
+    ctx.strokeStyle=l.accent||'#d9d2bd';ctx.lineWidth=3;
+    for(let yy=-h/2;yy<h/2;yy+=28){ctx.beginPath();ctx.moveTo(-w*.38,yy);ctx.lineTo(w*.38,yy);ctx.stroke();}
+  }else if(l.kind==='bridge'){
+    roundRect(-w/2,-h/2,w,h,8,l.color||'#b9b0a0');
+    ctx.strokeStyle=l.accent||'#e9dfc8';ctx.lineWidth=3;ctx.strokeRect(-w*.42,-h*.28,w*.84,h*.56);
+  }else{
+    roundRect(-w/2,-h/2,w,h,l.kind==='alley'?10:16,l.color||'#d8ccb4');
+    ctx.fillStyle='rgba(255,255,255,.16)';
+    ctx.fillRect(-w/2+8,-h/2+8,w-16,h-16);
+    ctx.strokeStyle=l.accent||'#fff0bb';ctx.lineWidth=3;
+    ctx.setLineDash(l.kind==='shopping_road'?[14,10]:[26,20]);
+    ctx.beginPath();ctx.moveTo(0,-h/2+16);ctx.lineTo(0,h/2-16);ctx.stroke();ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
+function drawBuilding(b){
+  const x=Math.round(b.x-cam.x),base=Math.round(b.y-cam.y),w=b.w,h=b.h;
+  const left=x-w/2,top=base-h;
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,.28)';ctx.shadowBlur=12;ctx.shadowOffsetY=8;
+  const asset=assetImage(b.asset);
+  if(asset?.complete&&asset.naturalWidth){
+    const rot=((Number(b.rot)||0)%360+360)%360;
+    ctx.translate(x,base-h/2);ctx.rotate(rot*Math.PI/180);
+    const rw=rot%180===0?w:h,rh=rot%180===0?h:w;
+    ctx.drawImage(asset,-rw/2,-rh/2,rw,rh);
+    ctx.restore();ctx.save();
+    ctx.shadowColor='transparent';
+    ctx.fillStyle='rgba(0,0,0,.24)';ctx.beginPath();ctx.ellipse(x,base+4,w*.34,7,0,0,Math.PI*2);ctx.fill();
+    if(EDIT.enabled&&(EDIT.selected===b||EDIT.drag?.building===b)){
+      ctx.strokeStyle='#ffe28c';ctx.lineWidth=3;ctx.setLineDash([7,5]);
+      ctx.strokeRect(left-6,top-6,w+12,h+12);ctx.setLineDash([]);
+    }
+    ctx.restore();return;
+  }
+  ctx.translate(x,base);ctx.rotate((b.rot||0)*Math.PI/180);ctx.translate(-x,-base);
+  roundRect(left,top,w,h,12,b.color);
+  ctx.shadowColor='transparent';
+  ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(left+10,top+10,w-20,22);
+  ctx.fillStyle=b.accent;roundRect(left+12,top+12,w-24,24,7,b.accent);
+  ctx.fillStyle='#182332';ctx.font='900 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(b.sign,x,top+24);
+  ctx.fillStyle='rgba(23,39,55,.72)';
+  for(let i=0;i<3;i++)roundRect(left+18+i*(w-52)/3,top+48,(w-72)/3,30,5,'rgba(45,77,101,.82)');
+  ctx.fillStyle='rgba(189,231,255,.42)';
+  for(let i=0;i<3;i++)ctx.fillRect(left+24+i*(w-52)/3,top+53,18,4);
+  roundRect(x-24,base-40,48,40,6,'#24303c');
+  ctx.fillStyle='rgba(110,180,210,.72)';ctx.fillRect(x-18,base-34,36,28);
+  ctx.fillStyle='rgba(255,255,255,.28)';ctx.fillRect(x-16,base-32,7,24);
+  ctx.fillStyle='rgba(0,0,0,.22)';ctx.fillRect(left+6,base-3,w-12,6);
+  if(b.kind==='conveni'){
+    ctx.fillStyle='#2bb673';ctx.fillRect(left+16,top+38,w-32,8);ctx.fillStyle='#ff6b4a';ctx.fillRect(left+16,top+46,w-32,5);
+  }else if(b.kind==='apartment'){
+    for(let yy=0;yy<2;yy++)for(let xx=0;xx<4;xx++)roundRect(left+22+xx*42,top+42+yy*34,24,18,4,'rgba(238,242,255,.58)');
+  }else if(b.kind==='clinic'){
+    ctx.fillStyle='#ffffff';ctx.fillRect(x-6,top+42,12,34);ctx.fillRect(x-17,top+53,34,12);
+  }
+  if(EDIT.enabled&&(EDIT.selected===b||EDIT.drag?.building===b)){
+    ctx.strokeStyle='#ffe28c';ctx.lineWidth=3;ctx.setLineDash([7,5]);
+    ctx.strokeRect(left-6,top-6,w+12,h+12);
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(18,22,32,.86)';
+    roundRect(left,top-28,Math.min(w,150),22,7,'rgba(18,22,32,.88)');
+    ctx.fillStyle='#ffe28c';ctx.font='900 11px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(b.label,left+8,top-17);
+  }
+  ctx.restore();
+}
+
+function roundRect(x,y,w,h,r,fill){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+  ctx.fillStyle=fill;ctx.fill();
+}
+
+function drawNpc(n){
+  if(n.img==='akaneDense'&&CHARACTERS.akane){
+    drawCharacterSprite(CHARACTERS.akane,'front',true,n.x-cam.x,n.y-cam.y,n.h,0,performance.now(),CHARACTERS.akane.filter);
+    return;
+  }
+  const img=IMG[n.img];
+  if(!img?.complete||!img.naturalWidth)return;
+  const dh=n.h,dw=dh*img.naturalWidth/img.naturalHeight,x=n.x-cam.x,y=n.y-cam.y;
+  ctx.fillStyle='rgba(0,0,0,.38)';ctx.beginPath();ctx.ellipse(x,y,dw*.28,5,0,0,Math.PI*2);ctx.fill();
+  ctx.save();ctx.filter=n.img==='akaneDense'?'saturate(1.04) brightness(1.08) contrast(1.04)':'saturate(.86) brightness(.9) contrast(1.08)';ctx.drawImage(img,x-dw/2,y-dh,dw,dh);ctx.restore();
+}
+
+function drawPlayer(bobY){
+  const char=CHARACTERS[activeCharacterId]||CHARACTERS.aota;
+  const direction=P.dir==='down'?'front':P.dir==='up'?'back':P.dir;
+  if(!char)return;
+  drawCharacterSprite(char,direction,P.moving,P.x-cam.x,P.y-cam.y,char.scale||96,bobY,P.moving?P.bob:performance.now(),char.filter);
+}
+
+function drawCompanion(){
+  const char=CHARACTERS.akane;
+  if(!char)return;
+  const direction=COMP.dir==='down'?'front':COMP.dir==='up'?'back':COMP.dir;
+  drawCharacterSprite(char,direction,COMP.moving,COMP.x-cam.x,COMP.y-cam.y,92,COMP.moving?Math.sin(COMP.bob/95)*1.5:0,COMP.moving?COMP.bob:performance.now(),char.filter);
+}
+
+function drawCharacterSprite(char,direction,moving,x,y,dh,bobY,clock,filter){
+  const frames=moving&&char.walk[direction]?.length?char.walk[direction]:(char.idleAnim[direction]?.length?char.idleAnim[direction]:[char.idle[direction]]);
+  const fps=moving?(char.cycleFps||8):(char.idleCycleFps||5);
+  const index=Math.floor(clock/(1000/fps))%Math.max(1,frames.length);
+  const img=frames[index]||char.idle[direction];
+  if(!img?.complete||!img.naturalWidth)return;
+  const dw=dh*img.naturalWidth/img.naturalHeight,drawY=y+bobY;
+  ctx.fillStyle='rgba(0,0,0,.42)';ctx.beginPath();ctx.ellipse(x,y+1,dw*.28,6,0,0,Math.PI*2);ctx.fill();
+  ctx.save();
+  ctx.translate(x,drawY);
+  ctx.filter=`${filter||'saturate(1.04) brightness(1.06) contrast(1.04)'} drop-shadow(0 3px 2px rgba(0,0,0,.28))`;
+  ctx.drawImage(img,-dw/2,-dh,dw,dh);
+  ctx.restore();
+}
+
+function drawProp(p){
+  const x=Math.round(p.x-cam.x),y=Math.round(p.y-cam.y);ctx.save();ctx.translate(x,y);ctx.rotate((p.rot||0)*Math.PI/180);setupQuality(ctx);
+  const asset=assetImage(p.asset);
+  if(asset?.complete&&asset.naturalWidth){
+    const w=p.w||144,h=p.h||96;ctx.shadowColor='rgba(0,0,0,.28)';ctx.shadowBlur=10;ctx.shadowOffsetY=7;ctx.drawImage(asset,-w/2,-h,w,h);ctx.restore();return;
+  }
+  ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(-16,-3,32,5);
+  if(p.type==='lamp'){
+    ctx.fillStyle='#1f2937';ctx.fillRect(-2,-62,5,62);ctx.fillStyle='#2f4056';ctx.fillRect(-12,-65,24,5);
+    ctx.fillStyle='#ffe089';ctx.fillRect(-8,-60,16,12);ctx.fillStyle='#fff4c0';ctx.fillRect(-3,-57,6,6);
+  }else if(p.type==='vending'){
+    roundRect(-14,-42,28,42,4,'#e6edf4');ctx.fillStyle='#27a5d8';ctx.fillRect(-10,-37,20,14);
+    ctx.fillStyle='#ff665a';ctx.fillRect(-10,-19,8,12);ctx.fillStyle='#ffe06b';ctx.fillRect(1,-19,8,12);
+  }else if(p.type==='bike'){
+    ctx.strokeStyle='#182331';ctx.lineWidth=3;ctx.beginPath();ctx.arc(-11,-6,7,0,Math.PI*2);ctx.arc(12,-6,7,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-11,-6);ctx.lineTo(0,-20);ctx.lineTo(12,-6);ctx.lineTo(-2,-6);ctx.lineTo(0,-20);ctx.stroke();
+  }else if(p.type==='cone'){
+    ctx.fillStyle='#ff7a2f';ctx.beginPath();ctx.moveTo(0,-31);ctx.lineTo(-13,0);ctx.lineTo(13,0);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#fff3d8';ctx.fillRect(-7,-15,14,4);
+  }else if(p.type==='crate'){
+    ctx.fillStyle='#34221d';ctx.fillRect(-16,-25,32,25);ctx.fillStyle='#7b4f30';ctx.fillRect(-14,-23,28,20);
+    ctx.fillStyle='#a36d3c';ctx.fillRect(-12,-20,24,3);ctx.fillRect(-12,-9,24,3);ctx.fillStyle='#3b2820';ctx.fillRect(-2,-23,4,20);
+  }else if(p.type==='barrel'){
+    ctx.fillStyle='#2a2020';ctx.fillRect(-13,-31,26,31);ctx.fillStyle='#76502e';ctx.fillRect(-11,-29,22,27);
+    ctx.fillStyle='#25242a';ctx.fillRect(-12,-23,24,4);ctx.fillRect(-12,-8,24,4);
+  }else if(p.type==='bench'){
+    ctx.fillStyle='#34231e';ctx.fillRect(-34,-18,68,8);ctx.fillRect(-30,-9,7,12);ctx.fillRect(23,-9,7,12);
+    ctx.fillStyle='#8c5a35';ctx.fillRect(-32,-23,64,8);ctx.fillRect(-32,-12,64,7);
+  }else if(p.type==='planter'){
+    ctx.fillStyle='#5b3827';ctx.fillRect(-13,-16,26,16);ctx.fillStyle='#915b39';ctx.fillRect(-16,-19,32,6);
+    ctx.fillStyle='#355536';ctx.fillRect(-12,-30,9,13);ctx.fillRect(2,-34,10,17);ctx.fillStyle='#6e8d45';ctx.fillRect(-5,-38,10,17);
+  }else if(p.type==='sign'){
+    ctx.fillStyle='#2c211d';ctx.fillRect(-3,-35,6,35);ctx.fillStyle='#7b5336';ctx.fillRect(-18,-48,36,22);
+    ctx.fillStyle='#c9a05d';ctx.fillRect(-14,-44,28,3);ctx.fillRect(-14,-34,20,3);
+  }else if(p.type==='tree'){
+    ctx.fillStyle='#6f4b31';ctx.fillRect(-5,-34,10,34);ctx.fillStyle='#39744a';for(const [px,py,r] of [[0,-48,20],[-15,-35,16],[15,-35,16]]){ctx.beginPath();ctx.arc(px,py,r,0,Math.PI*2);ctx.fill();}
+  }else if(p.type==='traffic_light'){
+    ctx.fillStyle='#303944';ctx.fillRect(-3,-48,6,48);ctx.fillRect(-11,-66,22,28);for(const [py,c] of [[-60,'#ef5d55'],[-52,'#f0c85c'],[-44,'#51ba72']]){ctx.fillStyle=c;ctx.beginPath();ctx.arc(0,py,3,0,Math.PI*2);ctx.fill();}
+  }else if(p.type==='road_sign'){
+    ctx.fillStyle='#44515e';ctx.fillRect(-3,-40,6,40);ctx.fillStyle='#4c8dc5';ctx.beginPath();ctx.arc(0,-48,12,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#eff7ff';ctx.lineWidth=2;ctx.stroke();
+  }else if(p.type==='fence'||p.type==='hedge'){
+    if(p.type==='hedge'){ctx.fillStyle='#4f873f';for(let px=-26;px<=26;px+=13){ctx.beginPath();ctx.arc(px,-12,14,0,Math.PI*2);ctx.fill();}}
+    else{ctx.fillStyle='#394754';ctx.fillRect(-34,-22,68,5);ctx.fillRect(-34,-8,68,5);for(let px=-31;px<34;px+=16)ctx.fillRect(px,-29,5,32);}
+  }else if(p.type==='bollard'){
+    ctx.fillStyle='#394754';ctx.fillRect(-6,-31,12,31);ctx.fillStyle='#f3d26f';ctx.fillRect(-6,-17,12,5);
+  }else if(p.type==='trash'||p.type==='mailbox'){
+    roundRect(-11,-34,22,34,4,p.type==='mailbox'?'#d84d48':'#53616b');ctx.fillStyle='#222d35';ctx.fillRect(-7,-25,14,4);
+  }else if(p.type==='fountain'){
+    ctx.fillStyle='#d7d0bd';ctx.beginPath();ctx.ellipse(0,-2,37,16,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#6bc2e2';ctx.beginPath();ctx.ellipse(0,-5,28,10,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#d7f5ff';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,-8);ctx.quadraticCurveTo(12,-48,1,-53);ctx.stroke();
+  }else if(p.type==='playground'){
+    ctx.fillStyle='#ef8356';ctx.fillRect(-24,-38,8,39);ctx.fillRect(16,-38,8,39);ctx.fillStyle='#f1c859';ctx.beginPath();ctx.moveTo(-31,-38);ctx.lineTo(0,-62);ctx.lineTo(31,-38);ctx.closePath();ctx.fill();ctx.strokeStyle='#4e8bc5';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(0,-28);ctx.lineTo(28,0);ctx.stroke();
+  }else if(p.type==='utility_pole'){
+    ctx.fillStyle='#4e5861';ctx.fillRect(-4,-70,8,70);ctx.fillRect(-22,-65,44,5);ctx.strokeStyle='#222a31';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-20,-62);ctx.lineTo(20,-62);ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawLighting(){
+  ctx.save();ctx.globalCompositeOperation='multiply';ctx.fillStyle='rgba(18,18,34,.08)';ctx.fillRect(0,0,VIEW.w,VIEW.h);ctx.restore();
+  ctx.save();ctx.globalCompositeOperation='screen';
+  for(const l of [...LIGHTS,...CUSTOM_TILE_PROPS.filter(p=>p.type==='lamp')]){
+    const x=l.x-cam.x,y=l.y-cam.y-38,g=ctx.createRadialGradient(x,y,2,x,y,88);
+    g.addColorStop(0,'rgba(255,224,137,.5)');g.addColorStop(.3,'rgba(255,156,63,.2)');g.addColorStop(1,'rgba(255,92,38,0)');
+    ctx.fillStyle=g;ctx.fillRect(x-90,y-90,180,180);
+  }
+  ctx.restore();
+}
+
+function drawTapMarker(){
+  if(!TAP.visible)return;const x=TAP.x-cam.x,y=TAP.y-cam.y,w=(TAP.age%620)/620,p=Math.sin(TAP.age/105)*1.2;
+  ctx.save();ctx.globalAlpha=TAP.alpha;ctx.strokeStyle='#ffe08a';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y,8+p,4+p*.3,0,0,Math.PI*2);ctx.stroke();
+  ctx.globalAlpha=TAP.alpha*(1-w)*.6;ctx.strokeStyle='#ff9f43';ctx.beginPath();ctx.ellipse(x,y,8+w*13,4+w*6,0,0,Math.PI*2);ctx.stroke();ctx.restore();
+  if(GAME.arrivalPulse>0&&GAME.arrivalPulse<260){
+    const a=1-GAME.arrivalPulse/260;
+    ctx.save();ctx.globalAlpha=a*.55;ctx.strokeStyle='#fff2a8';ctx.lineWidth=2;
+    ctx.beginPath();ctx.ellipse(P.x-cam.x,P.y-cam.y+1,13+(1-a)*13,5+(1-a)*4,0,0,Math.PI*2);ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function updateNear(){
+  if(dialogueOpen||INTERIOR.active){$('near').style.display='none';return;}
+  const entrance=entranceBuildingAtPlayer();
+  if(entrance){$('near').textContent='▲ '+entrance.label+'に入る';$('near').style.display='block';return;}
+  const shop=nearShop();
+  if(shop){
+    $('near').textContent=shop.kind==='stationery'?(GAME.clueFound?'✓ 星野文具店を調査済み':'▲ 星野文具店をタップして調べる'):'▲ '+shop.label;
+    $('near').style.display='block';return;
+  }
+  const npc=NPCS.find(n=>Math.hypot(P.x-n.x,P.y-n.y)<105);
+  if(npc){$('near').textContent='◆ '+npc.label+'をタップして話す';$('near').style.display='block';return;}
+  if(!P.moving&&Math.hypot(P.x-COMP.x,P.y-COMP.y)<78){$('near').textContent='◆ 栗栖 紅音をタップして話す';$('near').style.display='block';return;}
+  $('near').style.display='none';
+}
+
+function nearShop(){
+  return BUILDINGS.find(b=>Math.abs(P.x-b.x)<92&&Math.abs(P.y-b.y)<105);
+}
+
+function resize(){
+  const r=cv.getBoundingClientRect();
+  VIEW.w=Math.max(1,Math.round(r.width));
+  VIEW.h=Math.max(1,Math.round(r.height));
+  VIEW.dpr=Math.max(1,Math.min(3,window.devicePixelRatio||1));
+  cv.width=Math.round(VIEW.w*VIEW.dpr);
+  cv.height=Math.round(VIEW.h*VIEW.dpr);
+  ctx.setTransform(VIEW.dpr,0,0,VIEW.dpr,0,0);
+  setupQuality(ctx);
+}
+async function startGame(){
+  try{
+    await loadCharacters();
+    resize();
+    const params=new URLSearchParams(location.search);
+    if(params.get('skipStory')==='1'){
+      storyStarted=true;$('storyIntro').classList.remove('show');$('objective').textContent='街マップ動作確認';
+    }else renderStoryStep();
+    const testEntrance=params.get('testEntrance');
+    if(testEntrance&&CUSTOM_TILE_MAP){
+      const b=BUILDINGS.find(item=>item.to===testEntrance),size=Number(CUSTOM_TILE_MAP.tileSize)||48;
+      if(b?.entrance){P.x=(Number(b.entrance.gx)+.5)*size;P.y=(Number(b.entrance.gy)+.5)*size;P.tx=P.x;P.ty=P.y;}
+    }
+    requestAnimationFrame(frame);
+  }catch(err){
+    $('devStats').textContent='読み込み失敗: '+err.message;
+    console.error(err);
+  }
+}
+window.addEventListener('resize',resize);resize();startGame();
+</script>
+</body>
+</html>

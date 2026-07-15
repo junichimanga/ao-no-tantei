@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>青ノ探偵 橙ヶ丘2.5D試作</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#080b10;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif}
+body{display:flex;align-items:center;justify-content:center}
+#stage{position:relative;width:100%;max-width:430px;height:100vh;height:100dvh;max-height:900px;overflow:hidden;background:#182225;isolation:isolate}
+@media(min-width:450px){#stage{border-radius:28px;box-shadow:0 24px 80px #000}}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#shade{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 46%,transparent 44%,rgba(5,7,10,.42) 100%);z-index:2}
+#top{position:absolute;z-index:4;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top,0px));display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none}
+#title{padding:8px 10px;color:#fff1bf;background:rgba(16,22,28,.88);border:1px solid #a9884b;box-shadow:0 0 0 2px rgba(0,0,0,.4);font-size:11px;font-weight:900;line-height:1.4}
+#badge{padding:7px 9px;color:#17221f;background:#e2b65d;border:1px solid #fff0c0;font-size:10px;font-weight:900;white-space:nowrap}
+#bottom{position:absolute;z-index:4;left:10px;right:10px;bottom:calc(12px + env(safe-area-inset-bottom,0px));padding:11px 12px;background:rgba(12,18,24,.90);border:1px solid #7a6745;color:#dfe8e4;box-shadow:0 8px 26px rgba(0,0,0,.4)}
+#hint{font-size:11px;line-height:1.6;font-weight:900}
+#coords{color:#e7bd67;font-size:10px;margin-top:3px}
+.row{display:flex;gap:6px;margin-top:8px}
+button,a{flex:1;text-decoration:none;text-align:center;border:1px solid #79909c;background:#263846;color:#eff8f5;border-radius:7px;padding:8px 5px;font:900 10px inherit;cursor:pointer}
+button.active{color:#19241f;background:#dbad58;border-color:#ffefbd}
+#focusSelect{width:100%;margin-top:8px;border:1px solid #79909c;background:#192934;color:#eff8f5;border-radius:7px;padding:8px;font:900 10px inherit}
+#arrival{position:absolute;z-index:5;left:50%;top:50%;transform:translate(-50%,-50%);padding:9px 13px;color:#fff2bd;background:rgba(18,24,30,.9);border:1px solid #d5a950;font-size:11px;font-weight:900;opacity:0;pointer-events:none;transition:.2s}
+#arrival.show{opacity:1;transform:translate(-50%,-58%)}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv"></canvas>
+  <div id="shade"></div>
+  <div id="top"><div id="title">橙ヶ丘駅前・商店街<br>斜め俯瞰ルール統一テスト</div><div id="badge">ELIN風 2.5D</div></div>
+  <div id="arrival"></div>
+  <div id="bottom">
+    <div id="hint">マップをタップすると、青太が菱形タイルに沿って移動します。</div>
+    <div id="coords">読み込み中...</div>
+    <select id="focusSelect"><option value="">建物を選んで表示</option><option value="stationery">星野文具店</option><option value="apartment">青太のアパート</option><option value="school">橙ヶ丘学園</option><option value="station">橙ヶ丘駅</option><option value="karaage">からあげ屋</option></select>
+    <div class="row"><button id="gridBtn" class="active">グリッド ON</button><a href="town_tile_editor.html?sample=1">街を編集</a><a href="town2d_dense.html?v=42">旧表示</a></div>
+  </div>
+</div>
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),$=id=>document.getElementById(id);
+const KEY='aono-tantei-town-tilemap-v1',TW=72,TH=36;
+const BUILDING_25D={
+  stationery:'assets/town/buildings/25d/hoshino_stationery_25d.png',
+  apartment:'assets/town/buildings/25d/aota_apartment_25d.png',
+  school:'assets/town/buildings/25d/orengaoka_school_25d.png',
+  station:'assets/town/buildings/25d/orengaoka_station_25d.png',
+  karaage:'assets/town/buildings/25d/karaage_shop_25d.png'
+};
+const VIEW={w:0,h:0,dpr:1},camera={x:0,y:0},images={},state={grid:true,last:0};
+let map=loadMap();
+const player={gx:18.5,gy:21.5,tx:18.5,ty:21.5,moving:false,dir:'down',clock:0};
+const sprite={front:asset('assets/aota/idle_front.png'),left:asset('assets/aota/idle_side.png'),right:asset('assets/aota/idle_side.png'),back:asset('assets/aota_td/up.png')};
+const tree25d=asset('assets/town/props/street_tree_25d.png');
+
+function asset(src){if(!images[src]){const i=new Image();i.src=src+'?v=2';images[src]=i;}return images[src];}
+function loadMap(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(KEY)||'null');
+    if(saved?.type==='town-tile-map'&&saved.tiles?.length){
+      for(const o of saved.objects||[])if(BUILDING_25D[o.kind])o.asset=BUILDING_25D[o.kind];
+      return saved;
+    }
+  }catch(e){}
+  const cols=26,rows=26,tiles=Array(cols*rows).fill('grass');
+  const set=(x,y,id)=>{if(x>=0&&y>=0&&x<cols&&y<rows)tiles[y*cols+x]=id};
+  for(let y=0;y<rows;y++)for(let x=11;x<15;x++)set(x,y,'road');
+  for(let y=15;y<20;y++)for(let x=3;x<24;x++)set(x,y,'shopping_road');
+  return{type:'town-tile-map',name:'橙ヶ丘2.5D試作',cols,rows,tileSize:48,defaultTile:'grass',tiles,objects:[
+    {kind:'stationery',category:'building',label:'星野文具店',gx:15,gy:10,w:5,h:4,asset:BUILDING_25D.stationery,entrance:{gx:17,gy:14}},
+    {kind:'tree',category:'prop',label:'街路樹',gx:8,gy:12,w:1,h:1},{kind:'tree',category:'prop',label:'街路樹',gx:21,gy:12,w:1,h:1}
+  ]};
+}
+function project(gx,gy){return{x:(gx-gy)*TW/2,y:(gx+gy)*TH/2};}
+function screen(gx,gy){const p=project(gx,gy);return{x:VIEW.w/2+p.x-camera.x,y:VIEW.h*.45+p.y-camera.y};}
+function unproject(sx,sy){const px=sx-VIEW.w/2+camera.x,py=sy-VIEW.h*.45+camera.y;return{gx:px/TW+py/TH,gy:py/TH-px/TW};}
+function diamond(gx,gy,fill,stroke){const p=screen(gx,gy);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+TW/2,p.y+TH/2);ctx.lineTo(p.x,p.y+TH);ctx.lineTo(p.x-TW/2,p.y+TH/2);ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();}}
+function tile(gx,gy){return map.tiles[gy*map.cols+gx]||map.defaultTile||'grass'}
+function tileColor(id,gx,gy){
+  const n=((gx*19+gy*31)%7)/70;
+  const base={grass:[83,132,69],weeds:[65,108,58],flower:[78,139,71],dirt:[157,118,76],gravel:[148,142,130],concrete:[178,176,166],sidewalk:[194,190,179],road:[90,96,101],crosswalk:[92,98,103],parking:[105,110,112],shopping_road:[178,145,97],river:[63,155,194],wall:[52,61,68]}[id]||[88,135,72];
+  return`rgb(${base.map(v=>Math.round(v*(1+n))).join(',')})`;
+}
+function drawTile(gx,gy){
+  const id=tile(gx,gy),p=screen(gx,gy);diamond(gx,gy,tileColor(id,gx,gy),state.grid?'rgba(24,31,32,.28)':null);
+  ctx.save();
+  if(id==='river'){
+    ctx.strokeStyle='rgba(211,246,255,.42)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x-TW*.25,p.y+TH*.48);ctx.quadraticCurveTo(p.x,p.y+TH*.30,p.x+TW*.25,p.y+TH*.48);ctx.stroke();
+  }else if(id==='road'||id==='shopping_road'||id==='parking'){
+    ctx.strokeStyle=id==='shopping_road'?'rgba(255,224,157,.42)':'rgba(239,231,184,.52)';ctx.lineWidth=2;ctx.setLineDash([9,7]);ctx.beginPath();ctx.moveTo(p.x-TW*.22,p.y+TH*.37);ctx.lineTo(p.x+TW*.22,p.y+TH*.63);ctx.stroke();ctx.setLineDash([]);
+  }else if(id==='crosswalk'){
+    ctx.strokeStyle='rgba(250,248,235,.76)';ctx.lineWidth=4;for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(p.x-18+i*6,p.y+12+i*3);ctx.lineTo(p.x+3+i*6,p.y+23+i*3);ctx.stroke();}
+  }else if(['grass','weeds','flower'].includes(id)){
+    ctx.strokeStyle=id==='flower'?'#ffd7e2':'rgba(183,216,105,.45)';ctx.lineWidth=1.5;for(let i=0;i<2;i++){const ox=((gx*13+gy*7+i*17)%28)-14,oy=TH*.48+((gx*5+gy*11+i*9)%9);ctx.beginPath();ctx.moveTo(p.x+ox,p.y+oy+4);ctx.lineTo(p.x+ox+3,p.y+oy-2);ctx.stroke();}
+  }
+  ctx.restore();
+}
+function footprint(o){
+  const pts=[screen(o.gx,o.gy),screen(o.gx+o.w,o.gy),screen(o.gx+o.w,o.gy+o.h),screen(o.gx,o.gy+o.h)];
+  ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.closePath();
+  ctx.fillStyle='rgba(20,25,25,.16)';ctx.fill();
+}
+function drawObject(o){
+  const center=screen(o.gx+o.w/2,o.gy+o.h/2),bottom=screen(o.gx+o.w,o.gy+o.h);
+  footprint(o);
+  if(o.kind==='tree'){
+    if(tree25d.complete&&tree25d.naturalWidth){const h=126,w=h*tree25d.naturalWidth/tree25d.naturalHeight;ctx.drawImage(tree25d,center.x-w/2,bottom.y-h+10,w,h);}return;
+  }
+  const im=asset(o.asset||'');
+  if(im?.complete&&im.naturalWidth){
+    const footprintW=Math.max(92,(o.w+o.h)*TW*.46),h=Math.min(footprintW*1.24,230),w=h*im.naturalWidth/im.naturalHeight;
+    ctx.save();ctx.filter='drop-shadow(0 10px 7px rgba(0,0,0,.34)) saturate(.94) contrast(1.05)';ctx.drawImage(im,center.x-w/2,bottom.y-h+10,w,h);ctx.restore();return;
+  }
+  drawSimpleProp(o,center,bottom);
+}
+function drawSimpleProp(o,c,b){
+  ctx.save();ctx.translate(c.x,b.y);ctx.filter='drop-shadow(0 6px 4px rgba(0,0,0,.3))';
+  if(o.kind==='lamp'){ctx.fillStyle='#263238';ctx.fillRect(-3,-55,6,55);ctx.fillStyle='#ffe28b';ctx.fillRect(-9,-58,18,12);}
+  else if(o.kind==='bench'){ctx.fillStyle='#704827';ctx.fillRect(-28,-19,56,9);ctx.fillRect(-25,-8,50,7);ctx.fillStyle='#273037';ctx.fillRect(-21,-2,5,13);ctx.fillRect(16,-2,5,13);}
+  else if(o.kind==='vending'){ctx.fillStyle='#e9eef0';ctx.fillRect(-13,-40,26,40);ctx.fillStyle='#3aa5d1';ctx.fillRect(-9,-35,18,14);}
+  else if(o.kind==='planter'){ctx.fillStyle='#865333';ctx.fillRect(-17,-13,34,13);ctx.fillStyle='#4e8442';for(let x=-11;x<16;x+=11){ctx.beginPath();ctx.arc(x,-18,10,0,Math.PI*2);ctx.fill();}}
+  else if(o.kind==='traffic_light'){ctx.fillStyle='#303940';ctx.fillRect(-3,-48,6,48);ctx.fillRect(-10,-64,20,24);for(const [y,c] of [[-59,'#e75d52'],[-52,'#e8c25b'],[-45,'#54b876']]){ctx.fillStyle=c;ctx.beginPath();ctx.arc(0,y,3,0,Math.PI*2);ctx.fill();}}
+  else if(o.kind==='fountain'){ctx.fillStyle='#d5d0c4';ctx.beginPath();ctx.ellipse(0,-5,30,13,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#66b9da';ctx.beginPath();ctx.ellipse(0,-7,23,8,0,0,Math.PI*2);ctx.fill();}
+  else{ctx.fillStyle='#50616a';ctx.fillRect(-10,-25,20,25);}
+  ctx.restore();
+}
+function objectDepth(o){return o.gx+o.gy+o.w+o.h;}
+function drawPlayer(){
+  const p=screen(player.gx,player.gy),im=sprite[player.dir]||sprite.front,h=88;
+  ctx.fillStyle='rgba(16,20,20,.34)';ctx.beginPath();ctx.ellipse(p.x,p.y+TH*.54,14,6,0,0,Math.PI*2);ctx.fill();
+  if(!im?.complete||!im.naturalWidth)return;
+  const w=h*im.naturalWidth/im.naturalHeight;ctx.save();if(player.dir==='right'){ctx.translate(p.x,p.y);ctx.scale(-1,1);ctx.drawImage(im,-w/2,-h+TH*.55,w,h);}else ctx.drawImage(im,p.x-w/2,p.y-h+TH*.55,w,h);ctx.restore();
+}
+function walkable(gx,gy){const x=Math.floor(gx),y=Math.floor(gy);if(x<0||y<0||x>=map.cols||y>=map.rows)return false;if(['river','wall'].includes(tile(x,y)))return false;for(const o of map.objects||[]){if(o.category!=='prop'&&gx>=o.gx&&gy>=o.gy&&gx<o.gx+o.w&&gy<o.gy+o.h)return false;}return true;}
+function update(dt){
+  if(player.moving){const dx=player.tx-player.gx,dy=player.ty-player.gy,d=Math.hypot(dx,dy),step=dt*.0042;if(d<=step){player.gx=player.tx;player.gy=player.ty;player.moving=false;arrival('到着');}else{const nx=player.gx+dx/d*step,ny=player.gy+dy/d*step;if(walkable(nx,ny)){player.gx=nx;player.gy=ny;player.clock+=dt;}else player.moving=false;}}
+  const cp=project(player.gx,player.gy);camera.x+=(cp.x-camera.x)*Math.min(1,dt*.009);camera.y+=(cp.y-camera.y)*Math.min(1,dt*.009);
+  $('coords').textContent=`マス ${Math.floor(player.gx)}, ${Math.floor(player.gy)} ／ 1マス＝論理座標は正方形・表示は菱形`;
+}
+function focusBuilding(kind){
+  const o=(map.objects||[]).find(item=>item.kind===kind);if(!o)return;
+  player.gx=o.gx+o.w/2;player.gy=o.gy+o.h+1.35;player.tx=player.gx;player.ty=player.gy;player.moving=false;
+  const cp=project(player.gx,player.gy);camera.x=cp.x;camera.y=cp.y;arrival(o.label||'建物を表示');
+}
+function draw(){
+  ctx.clearRect(0,0,VIEW.w,VIEW.h);ctx.fillStyle='#1d2b2b';ctx.fillRect(0,0,VIEW.w,VIEW.h);
+  for(let sum=0;sum<map.cols+map.rows;sum++)for(let gy=0;gy<map.rows;gy++){const gx=sum-gy;if(gx>=0&&gx<map.cols)drawTile(gx,gy);}
+  const drawables=(map.objects||[]).map(o=>({depth:objectDepth(o),kind:'object',o}));drawables.push({depth:player.gx+player.gy+.7,kind:'player'});drawables.sort((a,b)=>a.depth-b.depth);
+  for(const d of drawables)d.kind==='player'?drawPlayer():drawObject(d.o);
+}
+function frame(t){const dt=Math.min(40,t-(state.last||t));state.last=t;update(dt);draw();requestAnimationFrame(frame)}
+function resize(){const r=cv.getBoundingClientRect();VIEW.w=Math.round(r.width);VIEW.h=Math.round(r.height);VIEW.dpr=Math.min(3,devicePixelRatio||1);cv.width=VIEW.w*VIEW.dpr;cv.height=VIEW.h*VIEW.dpr;ctx.setTransform(VIEW.dpr,0,0,VIEW.dpr,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high'}
+function arrival(text){$('arrival').textContent=text;$('arrival').classList.add('show');setTimeout(()=>$('arrival').classList.remove('show'),450)}
+cv.addEventListener('pointerdown',e=>{const r=cv.getBoundingClientRect(),g=unproject(e.clientX-r.left,e.clientY-r.top);const tx=Math.floor(g.gx)+.5,ty=Math.floor(g.gy)+.5;if(!walkable(tx,ty)){arrival('ここは通れない');return;}const dx=tx-player.gx,dy=ty-player.gy;player.dir=Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'front':'back');player.tx=tx;player.ty=ty;player.moving=true;});
+$('gridBtn').onclick=()=>{state.grid=!state.grid;$('gridBtn').classList.toggle('active',state.grid);$('gridBtn').textContent=`グリッド ${state.grid?'ON':'OFF'}`};
+$('focusSelect').onchange=e=>focusBuilding(e.target.value);
+window.addEventListener('resize',resize);resize();requestAnimationFrame(frame);
+</script>
+</body>
+</html>

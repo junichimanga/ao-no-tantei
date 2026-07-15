@@ -1,0 +1,105 @@
+{
+  "character": "aota",
+  "frameWidth": 192,
+  "frameHeight": 256,
+  "source": "character-lab/generated_aota_normal_3dchibi",
+  "note": "Generated from Character Creating Lab 3D chibi stills/sheets. Green screen keyed and resized for town2d_dense.",
+  "directions": {
+    "front": [
+      "walk_front_0.png",
+      "walk_front_1.png",
+      "walk_front_2.png",
+      "walk_front_3.png",
+      "walk_front_4.png",
+      "walk_front_5.png",
+      "walk_front_6.png",
+      "walk_front_7.png"
+    ],
+    "left": [
+      "walk_left_0.png",
+      "walk_left_1.png",
+      "walk_left_2.png",
+      "walk_left_3.png",
+      "walk_left_4.png",
+      "walk_left_5.png",
+      "walk_left_6.png",
+      "walk_left_7.png"
+    ],
+    "back": [
+      "walk_back_0.png",
+      "walk_back_1.png",
+      "walk_back_2.png",
+      "walk_back_3.png",
+      "walk_back_4.png",
+      "walk_back_5.png",
+      "walk_back_6.png",
+      "walk_back_7.png"
+    ],
+    "right": [
+      "walk_right_0.png",
+      "walk_right_1.png",
+      "walk_right_2.png",
+      "walk_right_3.png",
+      "walk_right_4.png",
+      "walk_right_5.png",
+      "walk_right_6.png",
+      "walk_right_7.png"
+    ]
+  },
+  "idle": {
+    "front": "idle_front.png",
+    "right": "idle_right.png",
+    "back": "idle_back.png",
+    "left": "idle_left.png"
+  },
+  "cycleFps": 8,
+  "horizontalSource": "Google Veo 3.1 Lite from current 3D chibi Aota right-facing reference, selected 0.7-2.7s at 4fps",
+  "walkSource": "Google Veo 3.1 Lite from current 3D chibi Aota front/right/back references, selected 0.7-2.7s at 4fps",
+  "frontSource": "User supplied 3-head Aota front image + Google Veo 3.1 Lite front walk from character-lab/generated_veo_walks/aota_user_front_v2/candidate_front",
+  "backSource": "User supplied 3-head Aota back image + Google Veo 3.1 Lite back walk from character-lab/generated_veo_walks/aota_user_back/candidate_back",
+  "idleAnimations": {
+    "front": [
+      "idle_front_0.png",
+      "idle_front_1.png",
+      "idle_front_2.png",
+      "idle_front_3.png",
+      "idle_front_4.png",
+      "idle_front_5.png",
+      "idle_front_6.png",
+      "idle_front_7.png"
+    ],
+    "right": [
+      "idle_right_0.png",
+      "idle_right_1.png",
+      "idle_right_2.png",
+      "idle_right_3.png",
+      "idle_right_4.png",
+      "idle_right_5.png",
+      "idle_right_6.png",
+      "idle_right_7.png"
+    ],
+    "back": [
+      "idle_back_0.png",
+      "idle_back_1.png",
+      "idle_back_2.png",
+      "idle_back_3.png",
+      "idle_back_4.png",
+      "idle_back_5.png",
+      "idle_back_6.png",
+      "idle_back_7.png"
+    ],
+    "left": [
+      "idle_left_0.png",
+      "idle_left_1.png",
+      "idle_left_2.png",
+      "idle_left_3.png",
+      "idle_left_4.png",
+      "idle_left_5.png",
+      "idle_left_6.png",
+      "idle_left_7.png"
+    ]
+  },
+  "idleCycleFps": 6,
+  "idleSource": "Google Veo 3.1 Lite subtle breathing idle from current Aota four-direction stills",
+  "sideIdleSource": "Procedural subtle breathing from corrected standing side stills; Veo side regeneration blocked by Google quota"
+}

@@ -1,0 +1,47 @@
+{
+  "character": "akane",
+  "frameWidth": 96,
+  "frameHeight": 128,
+  "directions": {
+    "front": [
+      "walk_front_0.png",
+      "walk_front_1.png",
+      "walk_front_2.png",
+      "walk_front_3.png"
+    ],
+    "left": [
+      "walk_left_0.png",
+      "walk_left_1.png",
+      "walk_left_2.png",
+      "walk_left_3.png",
+      "walk_left_4.png",
+      "walk_left_5.png",
+      "walk_left_6.png",
+      "walk_left_7.png"
+    ],
+    "back": [
+      "walk_back_0.png",
+      "walk_back_1.png",
+      "walk_back_2.png",
+      "walk_back_3.png"
+    ],
+    "right": [
+      "walk_right_0.png",
+      "walk_right_1.png",
+      "walk_right_2.png",
+      "walk_right_3.png",
+      "walk_right_4.png",
+      "walk_right_5.png",
+      "walk_right_6.png",
+      "walk_right_7.png"
+    ]
+  },
+  "idle": {
+    "front": "idle_front.png",
+    "right": "idle_right.png",
+    "back": "idle_back.png",
+    "left": "idle_left.png"
+  },
+  "cycleFps": 8,
+  "horizontalSource": "Google Veo 3.1 Lite, 8-second in-place walk, selected 0.5-2.5s at 4fps"
+}

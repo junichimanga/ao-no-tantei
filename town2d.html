@@ -61,6 +61,7 @@ const BUILDINGS=[
 
 // ---- プレイヤー ----
 const P={ x:900, y:560, tx:900, ty:560, moving:false, dir:'down', speed:0.16, bob:0, t:0, stuck:0 };
+const TAP={ x:900, y:560, visible:false, age:0, alpha:0 };
 
 // ---- 当たり判定 ----
 function blocked(x, y){
@@ -84,6 +85,7 @@ cv.addEventListener('pointerdown',(e)=>{
   P.tx=Math.max(30,Math.min(WORLD.w-30,w.x));
   P.ty=Math.max(40,Math.min(WORLD.h-20,w.y));
   P.moving=true;
+  TAP.x=P.tx; TAP.y=P.ty; TAP.visible=true; TAP.age=0; TAP.alpha=1;
   document.getElementById('hint').style.display='none';
 });
 
@@ -115,6 +117,13 @@ function frame(ts){
     }
   }
   const bobY=P.moving?Math.sin(P.bob/90)*3:0;
+  if(TAP.visible){
+    TAP.age+=dt;
+    if(!P.moving){
+      TAP.alpha=Math.max(0,TAP.alpha-dt/220);
+      if(TAP.alpha===0) TAP.visible=false;
+    }
+  }
 
   // カメラ追従
   cam.x=Math.max(0,Math.min(WORLD.w-cv.width, P.x-cv.width/2));
@@ -123,6 +132,7 @@ function frame(ts){
   // 描画
   ctx.clearRect(0,0,cv.width,cv.height);
   drawGround();
+  drawTapMarker();
   // y順で建物とプレイヤーを重ねる（奥→手前）
   const drawables=[...BUILDINGS.map(b=>({type:'b', y:b.y, b})), {type:'p', y:P.y}];
   drawables.sort((a,b)=>a.y-b.y);
@@ -132,6 +142,26 @@ function frame(ts){
   }
   updateNear();
   requestAnimationFrame(frame);
+}
+
+function drawTapMarker(){
+  if(!TAP.visible) return;
+  const sx=TAP.x-cam.x, sy=TAP.y-cam.y;
+  if(sx<-30||sx>cv.width+30||sy<-20||sy>cv.height+20) return;
+  const wave=(TAP.age%620)/620;
+  const pulse=Math.sin(TAP.age/105)*1.5;
+  ctx.save();
+  ctx.translate(Math.round(sx),Math.round(sy));
+  ctx.globalAlpha=TAP.alpha;
+  // 石畳の上で読みやすい、小さな金色の着地点。
+  ctx.fillStyle='rgba(255,236,154,.28)';
+  ctx.beginPath(); ctx.ellipse(0,0,12+pulse,6+pulse*.35,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#fff2ac'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.ellipse(0,0,9+pulse,4+pulse*.3,0,0,Math.PI*2); ctx.stroke();
+  ctx.globalAlpha=TAP.alpha*(1-wave)*.65;
+  ctx.strokeStyle='#ffd45f';
+  ctx.beginPath(); ctx.ellipse(0,0,9+wave*14,4+wave*7,0,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
 }
 
 function drawGround(){
