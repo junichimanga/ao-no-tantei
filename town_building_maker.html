@@ -42,6 +42,15 @@ p{font-size:11px;line-height:1.65;color:var(--muted)}
 .checks{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
 .check{display:flex;align-items:center;gap:7px;margin:0;padding:7px 8px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:#d8e1e7}
 .check input{width:auto;margin:0;accent-color:var(--gold)}
+.mode-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:14px 0 4px}
+.mode-tabs button{padding:10px 6px;font-size:11px}
+.mode-panel{display:none}.mode-panel.active{display:block}
+.section-card{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:10px;background:rgba(10,17,24,.38)}
+.section-card h2{margin:0 0 7px;color:#ffd98b}
+.range-value{float:right;color:#ffe09c;font-size:10px}
+.design-summary{margin-top:10px;padding:9px;border:1px dashed #62758a;border-radius:8px;color:#b9c8d3;font-size:10px;line-height:1.55}
+.stepper{display:grid;grid-template-columns:36px minmax(0,1fr) 36px;gap:5px;margin-top:5px}.stepper input{margin:0;text-align:center}.stepper button{padding:7px 4px;font-size:18px;line-height:1}
+.creator-switch{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0}.creator-switch button{padding:9px 4px;font-size:10px}.creator-switch button.active{background:var(--gold);color:#1c211f}
 @media(max-width:920px){body{overflow:auto}#app{height:auto;min-height:100vh;grid-template-columns:1fr}aside{border:0;border-bottom:1px solid var(--line)}#stageWrap{height:560px;order:-1}#right{border:0;border-top:1px solid var(--line)}}
 @media(max-width:520px){#stageWrap{height:430px}.grid2{grid-template-columns:1fr}.status{grid-template-columns:1fr 1fr 1fr}}
 </style>
@@ -51,36 +60,68 @@ p{font-size:11px;line-height:1.65;color:var(--muted)}
   <aside>
     <h1>橙ヶ丘2.5D建物メーカー</h1>
     <p>床と同じ2:1菱形座標で建物を組み立てます。カメラ角度は固定なので、どの建物も同じ街の法則に揃います。</p>
+    <div class="creator-switch"><button class="active">建物</button><button id="floorMakerBtn">床・水辺</button><button id="propMakerBtn">街の小物</button></div>
     <div class="status"><div><b>2:1</b>菱形タイル</div><div><b>正投影</b>遠近なし</div><div><b>固定</b>光源・角度</div></div>
-    <h2>建物プリセット</h2>
-    <label>建物<select id="preset"></select></label>
-    <label>建物名<input id="name" maxlength="24"></label>
-    <h2>大きさ</h2>
-    <div class="grid2">
-      <label>横マス<input id="width" type="number" min="2" max="10" step="1"></label>
-      <label>奥行マス<input id="depth" type="number" min="2" max="10" step="1"></label>
-      <label>階数<input id="floors" type="number" min="1" max="5" step="1"></label>
-      <label>階高<input id="floorHeight" type="range" min="24" max="48" step="2"></label>
+    <div class="mode-tabs"><button type="button" data-mode="basic" class="active">基本設計</button><button type="button" data-mode="design">外観デザイン</button></div>
+    <div id="basicPanel" class="mode-panel active">
+      <h2>建物プリセット</h2>
+      <label>建物<select id="preset"></select></label>
+      <label>建物名<input id="name" maxlength="24"></label>
+      <label>建物タイプ<select id="buildingType"><option value="custom">プリセットのまま</option><option value="shop">店舗</option><option value="office">ビル</option><option value="apartment">マンション・アパート</option><option value="japanese">和風の家</option><option value="western">洋風の家</option><option value="public">公共施設</option><option value="workshop">倉庫・工房</option></select></label>
+      <h2>大きさ</h2>
+      <div class="grid2">
+        <label>横マス<input id="width" type="number" min="2" max="10" step="1"></label>
+        <label>奥行マス<input id="depth" type="number" min="2" max="10" step="1"></label>
+        <label>階数<div class="stepper"><button id="floorDown" type="button" aria-label="階数を1階減らす">−</button><input id="floors" type="number" min="1" max="12" step="1"><button id="floorUp" type="button" aria-label="階数を1階増やす">＋</button></div></label>
+        <label>階高<input id="floorHeight" type="range" min="24" max="48" step="2"></label>
+      </div>
+      <label>描画スタイル<select id="tone"><option value="chibi">3Dチビトーン</option><option value="flat">設計用フラット</option></select></label>
+      <h2>建物の小物</h2>
+      <div class="checks">
+        <label class="check"><input id="hasAwning" type="checkbox">ひさし</label>
+        <label class="check"><input id="hasAC" type="checkbox">室外機</label>
+        <label class="check"><input id="hasPlants" type="checkbox">植木</label>
+        <label class="check"><input id="hasLamps" type="checkbox">外灯</label>
+        <label class="check"><input id="hasTrim" type="checkbox">角飾り</label>
+        <label class="check"><input id="hasChimney" type="checkbox">煙突</label>
+      </div>
     </div>
-    <h2>屋根・外観</h2>
-    <label>屋根<select id="roof"><option value="hip">寄棟屋根</option><option value="gable">切妻屋根</option><option value="flat">陸屋根</option></select></label>
-    <div class="grid2 swatches">
-      <label>正面<input id="frontColor" type="color"></label>
-      <label>側面<input id="sideColor" type="color"></label>
-      <label>屋根<input id="roofColor" type="color"></label>
-      <label>差し色<input id="accentColor" type="color"></label>
-    </div>
-    <label>窓の列数<input id="windows" type="range" min="1" max="7" step="1"></label>
-    <label>壁の質感<select id="material"><option value="stucco">塗り壁</option><option value="wood">木板</option><option value="brick">レンガ</option><option value="tile">外壁タイル</option><option value="stone">石張り</option></select></label>
-    <label>描画スタイル<select id="tone"><option value="chibi">3Dチビトーン</option><option value="flat">設計用フラット</option></select></label>
-    <h2>建物の小物</h2>
-    <div class="checks">
-      <label class="check"><input id="hasSign" type="checkbox">看板</label>
-      <label class="check"><input id="hasAwning" type="checkbox">ひさし</label>
-      <label class="check"><input id="hasAC" type="checkbox">室外機</label>
-      <label class="check"><input id="hasPlants" type="checkbox">植木</label>
-      <label class="check"><input id="hasLamps" type="checkbox">外灯</label>
-      <label class="check"><input id="hasTrim" type="checkbox">角飾り</label>
+    <div id="designPanel" class="mode-panel">
+      <div class="section-card">
+        <h2>壁のデザイン</h2>
+        <label>壁材<select id="material"><option value="stucco">やわらかい塗り壁</option><option value="wood">縦張り木板</option><option value="woodHorizontal">横張り木板</option><option value="brick">レンガ</option><option value="tile">外壁タイル</option><option value="stone">石張り</option><option value="concrete">打ちっぱなしコンクリート</option><option value="siding">モダンサイディング</option><option value="halfTimber">ハーフティンバー</option></select></label>
+        <div class="grid2 swatches"><label>正面<input id="frontColor" type="color"></label><label>側面<input id="sideColor" type="color"></label></div>
+      </div>
+      <div class="section-card">
+        <h2>屋根のデザイン</h2>
+        <label>屋根形状<select id="roof"><option value="hip">寄棟屋根</option><option value="gable">切妻屋根</option><option value="flat">陸屋根</option><option value="shed">片流れ屋根</option><option value="mansard">マンサード屋根</option><option value="butterfly">バタフライ屋根</option></select></label>
+        <label>屋根材<select id="roofMaterial"><option value="tile">陶器瓦</option><option value="slate">スレート</option><option value="metal">金属板</option><option value="shingle">木製シングル</option><option value="green">緑化屋根</option></select></label>
+        <label>屋根色<input id="roofColor" type="color"></label>
+      </div>
+      <div class="section-card">
+        <h2>窓のデザイン</h2>
+        <label>窓タイプ<select id="windowStyle"><option value="standard">標準窓</option><option value="sash">十字サッシ</option><option value="lattice">格子窓</option><option value="arched">アーチ窓</option><option value="shop">大きな店舗窓</option><option value="industrial">工場風連続窓</option></select></label>
+        <label>窓の列数 <span id="windowsValue" class="range-value"></span><input id="windows" type="range" min="1" max="7" step="1"></label>
+        <div class="grid2 swatches"><label>ガラス<input id="glassColor" type="color"></label><label>窓枠<input id="windowFrameColor" type="color"></label></div>
+      </div>
+      <div class="section-card">
+        <h2>看板のデザイン</h2>
+        <label class="check"><input id="hasSign" type="checkbox">看板を表示</label>
+        <label>看板の文字<input id="signText" maxlength="20"></label>
+        <label>看板タイプ<select id="signStyle"><option value="board">木製ボード</option><option value="capsule">角丸プレート</option><option value="hanging">吊り下げ看板</option><option value="vertical">縦看板</option><option value="neon">ネオン風</option><option value="banner">布バナー</option></select></label>
+        <label>フォント<select id="signFont"><option value="gothic">太めゴシック</option><option value="mincho">上品な明朝</option><option value="rounded">やわらか丸文字</option><option value="hand">手書き風</option><option value="classic">レトロ看板風</option></select></label>
+        <div class="grid2"><label>横位置<select id="signPosition"><option value="left">左</option><option value="center">中央</option><option value="right">右</option></select></label><label>高さ<select id="signHeight"><option value="low">入口上</option><option value="middle">中央</option><option value="high">上部</option></select></label></div>
+        <label>看板サイズ <span id="signSizeValue" class="range-value"></span><input id="signSize" type="range" min="45" max="100" step="5"></label>
+        <div class="grid2 swatches"><label>看板色<input id="accentColor" type="color"></label><label>文字色<input id="signTextColor" type="color"></label></div>
+      </div>
+      <div class="section-card">
+        <h2>マーク・ロゴ</h2>
+        <label>ロゴ<select id="logoShape"><option value="none">なし</option><option value="pen">万年筆</option><option value="star">星</option><option value="book">本</option><option value="flower">花</option><option value="chicken">からあげ鳥</option><option value="clock">時計</option><option value="shield">校章</option><option value="coffee">カップ</option></select></label>
+        <label>ロゴ位置<select id="logoPlacement"><option value="sign">看板の中</option><option value="upper">建物上部</option><option value="left">正面左</option><option value="right">正面右</option></select></label>
+        <label>ロゴサイズ <span id="logoSizeValue" class="range-value"></span><input id="logoSize" type="range" min="45" max="120" step="5"></label>
+        <label>ロゴ色<input id="logoColor" type="color"></label>
+      </div>
+      <div id="designSummary" class="design-summary"></div>
     </div>
   </aside>
 
@@ -101,27 +142,56 @@ p{font-size:11px;line-height:1.65;color:var(--muted)}
     <label>プレビュー倍率<input id="zoom" type="range" min="55" max="150" value="100"></label>
     <div class="note"><p id="measure">床の占有範囲を計算中…</p></div>
     <h2>書き出し</h2>
+    <div class="row"><button id="registerBtn" class="primary">街で使う建物として登録</button></div>
+    <p id="libraryStatus" class="mini">登録すると、タイル式街編集の「自作建物」にすぐ追加されます。</p>
+    <div class="row"><button id="duplicateBtn">バリエーションとして複製</button><button id="newBtn">新しく作る</button></div>
+    <p id="draftStatus" class="mini">作りかけはこのブラウザへ自動保存されます。⌘/Ctrl＋Enterでも登録できます。</p>
     <div class="row"><button id="pngBtn" class="primary">透過PNG保存</button></div>
     <div class="row"><button id="jsonBtn">設定JSON保存</button><button id="copyBtn">街用JSONコピー</button></div>
-    <div class="row"><button id="savePresetBtn">カスタム保存</button><button id="resetBtn">初期値へ戻す</button></div>
+    <div class="row"><button id="savePresetBtn">カスタム保存</button><button id="loadPresetBtn">保存デザイン読込</button></div>
+    <div class="row"><button id="resetBtn">初期値へ戻す</button></div>
     <p class="mini">PNGは建物と接地影だけを書き出します。グリッドや背景は入りません。画像の下中央が建物の接地点です。</p>
     <h2>街ツールへ</h2>
     <div class="row"><button id="editorBtn">タイル式街編集を開く</button><button id="previewBtn">2.5D街を開く</button></div>
-    <p class="mini">保存したPNGを assets/town/buildings/made/ に置き、コピーしたJSONの asset 名を合わせれば配置できます。</p>
+    <p class="mini">同じブラウザなら登録した建物をそのまま配置できます。別の端末へ移すときは街編集ツールの建物パック書き出しを使えます。</p>
   </aside>
 </div>
 <script>
-const $=id=>document.getElementById(id),cv=$('cv'),ctx=cv.getContext('2d');
-const TW=80,TH=40,PRESETS={
-  stationery:{label:'星野文具店',name:'星野文具店',width:4,depth:3,floors:2,floorHeight:34,roof:'hip',frontColor:'#d8b071',sideColor:'#a87a4d',roofColor:'#405e78',accentColor:'#f3c04f',windows:3,kind:'stationery',material:'wood',tone:'chibi',hasSign:true,hasAwning:true,hasAC:true,hasPlants:true,hasLamps:true,hasTrim:true},
-  apartment:{label:'青太のアパート',name:'青太のアパート',width:3,depth:4,floors:2,floorHeight:38,roof:'flat',frontColor:'#40556b',sideColor:'#28394b',roofColor:'#1d2b36',accentColor:'#d9a74b',windows:2,kind:'apartment',material:'tile',tone:'chibi',hasSign:false,hasAwning:false,hasAC:true,hasPlants:true,hasLamps:true,hasTrim:true},
-  school:{label:'橙ヶ丘学園',name:'橙ヶ丘学園',width:7,depth:5,floors:3,floorHeight:32,roof:'hip',frontColor:'#e2d3ad',sideColor:'#b8a47c',roofColor:'#52705a',accentColor:'#d4a64e',windows:6,kind:'school',material:'stucco',tone:'chibi',hasSign:true,hasAwning:false,hasAC:false,hasPlants:true,hasLamps:true,hasTrim:true},
-  station:{label:'橙ヶ丘駅',name:'橙ヶ丘駅',width:6,depth:4,floors:2,floorHeight:34,roof:'gable',frontColor:'#c9c2ad',sideColor:'#918d7d',roofColor:'#395166',accentColor:'#d4a64e',windows:4,kind:'station',material:'stone',tone:'chibi',hasSign:true,hasAwning:true,hasAC:false,hasPlants:true,hasLamps:true,hasTrim:true},
-  karaage:{label:'からあげ屋',name:'からあげ屋',width:4,depth:3,floors:1,floorHeight:38,roof:'hip',frontColor:'#9a6042',sideColor:'#6e402f',roofColor:'#3f3431',accentColor:'#d7553e',windows:2,kind:'karaage',material:'wood',tone:'chibi',hasSign:true,hasAwning:true,hasAC:true,hasPlants:true,hasLamps:true,hasTrim:true}
+const $=id=>document.getElementById(id),cv=$('cv'),ctx=cv.getContext('2d'),DRAFT_KEY='orengaoka-building-maker-draft-v1';
+const BUILDING_DB='aono-tantei-building-library',BUILDING_STORE='buildings';
+let editingLibraryId=null,draftReady=false;
+function openBuildingDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(BUILDING_DB,1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(BUILDING_STORE))req.result.createObjectStore(BUILDING_STORE,{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+async function putLibraryBuilding(record){const db=await openBuildingDB();return new Promise((resolve,reject)=>{const tx=db.transaction(BUILDING_STORE,'readwrite');tx.objectStore(BUILDING_STORE).put(record);tx.oncomplete=()=>{db.close();resolve(record)};tx.onerror=()=>reject(tx.error)})}
+async function getAllLibraryBuildings(){const db=await openBuildingDB();return new Promise((resolve,reject)=>{const tx=db.transaction(BUILDING_STORE,'readonly'),req=tx.objectStore(BUILDING_STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);tx.oncomplete=()=>db.close()})}
+const TW=80,TH=40,BASE_STYLE={buildingType:'custom',roofMaterial:'slate',windowStyle:'standard',glassColor:'#bfe4f2',windowFrameColor:'#354d5a',signStyle:'board',signFont:'gothic',signPosition:'center',signHeight:'low',signSize:80,signTextColor:'#392b20',logoShape:'none',logoPlacement:'sign',logoSize:75,logoColor:'#fff0b8',hasChimney:false},PRESETS={
+  stationery:{...BASE_STYLE,label:'星野文具店',name:'星野文具店',signText:'星野文具店',buildingType:'shop',width:4,depth:3,floors:2,floorHeight:34,roof:'hip',roofMaterial:'tile',frontColor:'#d8b071',sideColor:'#a87a4d',roofColor:'#405e78',accentColor:'#f3c04f',windows:3,windowStyle:'lattice',logoShape:'pen',kind:'stationery',material:'wood',tone:'chibi',hasSign:true,hasAwning:true,hasAC:true,hasPlants:true,hasLamps:true,hasTrim:true},
+  apartment:{...BASE_STYLE,label:'青太のアパート',name:'青太のアパート',signText:'橙ヶ丘ハイツ',buildingType:'apartment',width:3,depth:4,floors:2,floorHeight:38,roof:'flat',roofMaterial:'metal',frontColor:'#40556b',sideColor:'#28394b',roofColor:'#1d2b36',accentColor:'#d9a74b',windows:2,windowStyle:'sash',kind:'apartment',material:'tile',tone:'chibi',hasSign:false,hasAwning:false,hasAC:true,hasPlants:true,hasLamps:true,hasTrim:true},
+  school:{...BASE_STYLE,label:'橙ヶ丘学園',name:'橙ヶ丘学園',signText:'橙ヶ丘学園',buildingType:'public',width:7,depth:5,floors:3,floorHeight:32,roof:'hip',roofMaterial:'tile',frontColor:'#e2d3ad',sideColor:'#b8a47c',roofColor:'#52705a',accentColor:'#d4a64e',windows:6,windowStyle:'sash',logoShape:'shield',logoPlacement:'upper',kind:'school',material:'stucco',tone:'chibi',hasSign:true,hasAwning:false,hasAC:false,hasPlants:true,hasLamps:true,hasTrim:true},
+  station:{...BASE_STYLE,label:'橙ヶ丘駅',name:'橙ヶ丘駅',signText:'橙ヶ丘駅',buildingType:'public',width:6,depth:4,floors:2,floorHeight:34,roof:'gable',roofMaterial:'slate',frontColor:'#c9c2ad',sideColor:'#918d7d',roofColor:'#395166',accentColor:'#d4a64e',windows:4,windowStyle:'arched',logoShape:'clock',logoPlacement:'upper',kind:'station',material:'stone',tone:'chibi',hasSign:true,hasAwning:true,hasAC:false,hasPlants:true,hasLamps:true,hasTrim:true},
+  karaage:{...BASE_STYLE,label:'からあげ屋',name:'からあげ屋',signText:'橙ヶ丘からあげ',buildingType:'shop',width:4,depth:3,floors:1,floorHeight:38,roof:'hip',roofMaterial:'tile',frontColor:'#9a6042',sideColor:'#6e402f',roofColor:'#3f3431',accentColor:'#d7553e',windows:2,windowStyle:'shop',signStyle:'banner',signFont:'hand',signTextColor:'#fff6df',logoShape:'chicken',kind:'karaage',material:'woodHorizontal',tone:'chibi',hasSign:true,hasAwning:true,hasAC:true,hasPlants:true,hasLamps:true,hasTrim:true},
+  police:{...BASE_STYLE,label:'橙ヶ丘警察署',name:'橙ヶ丘警察署',signText:'橙ヶ丘警察署',buildingType:'public',width:6,depth:4,floors:3,floorHeight:34,roof:'hip',roofMaterial:'slate',frontColor:'#d9e3e7',sideColor:'#aebdc5',roofColor:'#355d7a',accentColor:'#3d79a8',windows:5,windowStyle:'sash',signStyle:'capsule',signFont:'gothic',signTextColor:'#f5fbff',logoShape:'shield',logoPlacement:'upper',logoColor:'#d9efff',kind:'police',material:'stone',tone:'chibi',hasSign:true,hasAwning:false,hasAC:true,hasPlants:true,hasLamps:true,hasTrim:true},
+  hospital:{...BASE_STYLE,label:'橙ヶ丘中央病院',name:'橙ヶ丘中央病院',signText:'橙ヶ丘中央病院',buildingType:'public',width:7,depth:5,floors:4,floorHeight:32,roof:'flat',roofMaterial:'metal',frontColor:'#e9eee9',sideColor:'#bccac5',roofColor:'#66817d',accentColor:'#4ba49a',windows:6,windowStyle:'sash',signStyle:'capsule',signFont:'gothic',signTextColor:'#ffffff',logoShape:'flower',logoPlacement:'upper',logoColor:'#f2fff8',kind:'hospital',material:'tile',tone:'chibi',hasSign:true,hasAwning:true,hasAC:true,hasPlants:true,hasLamps:true,hasTrim:true},
+  cafe:{...BASE_STYLE,label:'喫茶オレンジ',name:'喫茶オレンジ',signText:'喫茶オレンジ',buildingType:'shop',width:3,depth:3,floors:2,floorHeight:36,roof:'mansard',roofMaterial:'shingle',frontColor:'#c88762',sideColor:'#965d47',roofColor:'#4c3434',accentColor:'#d78a48',windows:2,windowStyle:'arched',signStyle:'hanging',signFont:'classic',signTextColor:'#fff3dc',logoShape:'coffee',logoPlacement:'sign',logoColor:'#fff1ca',kind:'cafe',material:'brick',tone:'chibi',hasSign:true,hasAwning:true,hasAC:true,hasPlants:true,hasLamps:true,hasTrim:true,hasChimney:true},
+  convenience:{...BASE_STYLE,label:'コンビニ たちばな',name:'コンビニ たちばな',signText:'たちばなマート',buildingType:'shop',width:5,depth:3,floors:1,floorHeight:42,roof:'flat',roofMaterial:'metal',frontColor:'#e8eee9',sideColor:'#b8c7c0',roofColor:'#566b68',accentColor:'#e98945',windows:4,windowStyle:'shop',signStyle:'capsule',signFont:'rounded',signTextColor:'#ffffff',logoShape:'star',logoPlacement:'sign',logoColor:'#fff0a8',kind:'convenience',material:'siding',tone:'chibi',hasSign:true,hasAwning:true,hasAC:true,hasPlants:true,hasLamps:true,hasTrim:true},
+  bookstore:{...BASE_STYLE,label:'橙ヶ丘古書堂',name:'橙ヶ丘古書堂',signText:'橙ヶ丘古書堂',buildingType:'shop',width:4,depth:3,floors:2,floorHeight:34,roof:'gable',roofMaterial:'tile',frontColor:'#9d7956',sideColor:'#72533d',roofColor:'#3d4d52',accentColor:'#b88948',windows:3,windowStyle:'lattice',signStyle:'vertical',signFont:'mincho',signTextColor:'#fff4d8',logoShape:'book',logoPlacement:'upper',logoColor:'#f5dfad',kind:'bookstore',material:'woodHorizontal',tone:'chibi',hasSign:true,hasAwning:true,hasAC:false,hasPlants:true,hasLamps:true,hasTrim:true},
+  cityhall:{...BASE_STYLE,label:'橙ヶ丘市役所',name:'橙ヶ丘市役所',signText:'橙ヶ丘市役所',buildingType:'public',width:8,depth:5,floors:4,floorHeight:32,roof:'flat',roofMaterial:'green',frontColor:'#d8d0bc',sideColor:'#a9a18f',roofColor:'#667a61',accentColor:'#9b7d45',windows:7,windowStyle:'standard',signStyle:'board',signFont:'mincho',signTextColor:'#fff8e7',logoShape:'clock',logoPlacement:'upper',logoColor:'#f8e6b2',kind:'cityhall',material:'stone',tone:'chibi',hasSign:true,hasAwning:false,hasAC:true,hasPlants:true,hasLamps:true,hasTrim:true},
+  house:{...BASE_STYLE,label:'橙ヶ丘の洋風住宅',name:'橙ヶ丘の洋風住宅',signText:'',buildingType:'western',width:3,depth:3,floors:2,floorHeight:35,roof:'gable',roofMaterial:'shingle',frontColor:'#ead8bd',sideColor:'#bca98d',roofColor:'#795957',accentColor:'#52707a',windows:3,windowStyle:'arched',logoShape:'none',kind:'house',material:'stucco',tone:'chibi',hasSign:false,hasAwning:false,hasAC:true,hasPlants:true,hasLamps:true,hasTrim:true,hasChimney:true},
+  office:{...BASE_STYLE,label:'橙ヶ丘オフィスビル',name:'橙ヶ丘オフィスビル',signText:'ORANGE HILLS',buildingType:'office',width:5,depth:4,floors:7,floorHeight:29,roof:'flat',roofMaterial:'metal',frontColor:'#7f929d',sideColor:'#596c78',roofColor:'#344751',accentColor:'#4c8fac',windows:5,windowStyle:'industrial',signStyle:'neon',signFont:'gothic',signTextColor:'#e6fbff',logoShape:'star',logoPlacement:'upper',logoColor:'#d9f7ff',kind:'office',material:'concrete',tone:'chibi',hasSign:true,hasAwning:false,hasAC:true,hasPlants:false,hasLamps:true,hasTrim:false},
+  detective:{...BASE_STYLE,label:'青ノ探偵事務所',name:'青ノ探偵事務所',signText:'青ノ探偵事務所',buildingType:'office',width:4,depth:3,floors:3,floorHeight:32,roof:'shed',roofMaterial:'metal',frontColor:'#536a7b',sideColor:'#354a5b',roofColor:'#243744',accentColor:'#d9a948',windows:3,windowStyle:'standard',signStyle:'hanging',signFont:'mincho',signTextColor:'#fff4d2',logoShape:'pen',logoPlacement:'sign',logoColor:'#ffe3a1',kind:'detective',material:'brick',tone:'chibi',hasSign:true,hasAwning:true,hasAC:true,hasPlants:true,hasLamps:true,hasTrim:true}
 };
+const BUILDING_TYPES={
+  shop:{width:4,depth:3,floors:2,floorHeight:36,roof:'hip',roofMaterial:'tile',material:'woodHorizontal',windowStyle:'shop',windows:3,frontColor:'#d2a36f',sideColor:'#9b7050',roofColor:'#48566a',accentColor:'#d6a84d',hasSign:true,hasAwning:true,hasPlants:true,hasTrim:true},
+  office:{width:5,depth:4,floors:7,floorHeight:30,roof:'flat',roofMaterial:'metal',material:'concrete',windowStyle:'industrial',windows:5,frontColor:'#8798a3',sideColor:'#60717d',roofColor:'#3c4b56',accentColor:'#4d88a8',hasSign:true,hasAwning:false,hasPlants:false,hasTrim:false,hasAC:true},
+  apartment:{width:4,depth:4,floors:4,floorHeight:34,roof:'flat',roofMaterial:'metal',material:'tile',windowStyle:'sash',windows:3,frontColor:'#d0c5b4',sideColor:'#a49a8d',roofColor:'#59636a',accentColor:'#8e6d50',hasSign:false,hasAwning:false,hasPlants:true,hasTrim:true,hasAC:true},
+  japanese:{width:4,depth:3,floors:2,floorHeight:32,roof:'gable',roofMaterial:'tile',material:'woodHorizontal',windowStyle:'lattice',windows:3,frontColor:'#c9ae7f',sideColor:'#8f7655',roofColor:'#344a52',accentColor:'#6b4934',hasSign:false,hasAwning:true,hasPlants:true,hasTrim:true,hasChimney:false},
+  western:{width:4,depth:3,floors:2,floorHeight:36,roof:'gable',roofMaterial:'shingle',material:'stucco',windowStyle:'arched',windows:3,frontColor:'#e4d2b5',sideColor:'#bba88c',roofColor:'#795c58',accentColor:'#486a72',hasSign:false,hasAwning:false,hasPlants:true,hasTrim:true,hasChimney:true},
+  public:{width:6,depth:4,floors:3,floorHeight:34,roof:'hip',roofMaterial:'slate',material:'stone',windowStyle:'arched',windows:5,frontColor:'#d3c7aa',sideColor:'#a99e84',roofColor:'#4b6670',accentColor:'#b68a45',hasSign:true,hasAwning:false,hasPlants:true,hasTrim:true},
+  workshop:{width:5,depth:4,floors:1,floorHeight:46,roof:'shed',roofMaterial:'metal',material:'siding',windowStyle:'industrial',windows:4,frontColor:'#87918e',sideColor:'#626d6b',roofColor:'#4a5758',accentColor:'#c28148',hasSign:true,hasAwning:false,hasPlants:false,hasTrim:false,hasAC:true}
+};
+const CITY_PRESET_IDS=['police','hospital','cafe','convenience','bookstore','cityhall','house','office','detective'];
 let state={...PRESETS.stationery,rotation:0,grid:true,shadow:true,zoom:1.18},VIEW={w:0,h:0,dpr:1};
-const ids=['name','width','depth','floors','floorHeight','roof','frontColor','sideColor','roofColor','accentColor','windows','material','tone'];
-const detailIds=['hasSign','hasAwning','hasAC','hasPlants','hasLamps','hasTrim'];
+const ids=['name','buildingType','width','depth','floors','floorHeight','roof','roofMaterial','frontColor','sideColor','roofColor','accentColor','windows','windowStyle','glassColor','windowFrameColor','material','tone','signText','signStyle','signFont','signPosition','signHeight','signSize','signTextColor','logoShape','logoPlacement','logoSize','logoColor'];
+const detailIds=['hasSign','hasAwning','hasAC','hasPlants','hasLamps','hasTrim','hasChimney'];
 for(const [id,p] of Object.entries(PRESETS)){const o=document.createElement('option');o.value=id;o.textContent=p.label;$('preset').appendChild(o)}
 function shade(color,amt){let r,g,b;if(color.startsWith('#')){const n=parseInt(color.slice(1),16);r=n>>16;g=(n>>8)&255;b=n&255}else{const m=color.match(/\d+/g)||[128,128,128];[r,g,b]=m.map(Number)}r=Math.max(0,Math.min(255,r+amt));g=Math.max(0,Math.min(255,g+amt));b=Math.max(0,Math.min(255,b+amt));return`rgb(${r},${g},${b})`}
 function project(x,y,z,ox,oy,scale=1){return{x:ox+(x-y)*TW*.5*scale,y:oy+(x+y)*TH*.5*scale-z*scale}}
@@ -131,32 +201,40 @@ function toonPoly(c,pts,fill,stroke='rgba(27,31,35,.72)',lw=1.35,hi=28,lo=-15){p
 function line(c,a,b,color,w=1){c.beginPath();c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);c.strokeStyle=color;c.lineWidth=w;c.stroke()}
 function faceQuad(face,u0,u1,z0,z1){const p=t=>face.P(t.x,t.y,t.z);return face.axis==='front'?[p({x:u0,y:face.D,z:z0}),p({x:u1,y:face.D,z:z0}),p({x:u1,y:face.D,z:z1}),p({x:u0,y:face.D,z:z1})]:[p({x:face.W,y:u0,z:z0}),p({x:face.W,y:u1,z:z0}),p({x:face.W,y:u1,z:z1}),p({x:face.W,y:u0,z:z1})]}
 function quadOnFace(c,face,u0,u1,z0,z1,fill,stroke){toonPoly(c,faceQuad(face,u0,u1,z0,z1),fill,stroke,.95)}
-function windowOnFace(c,face,u0,u1,z0,z1){const pts=faceQuad(face,u0,u1,z0,z1);toonPoly(c,pts,face.axis==='front'?'#bfe4f2':'#9fc8da','#354d5a',1.35,34,-25);if(state.tone==='chibi'){line(c,pts[3],pts[2],'rgba(255,255,255,.8)',1.15);const a={x:pts[3].x+(pts[2].x-pts[3].x)*.15,y:pts[3].y+(pts[2].y-pts[3].y)*.15},b={x:pts[3].x+(pts[2].x-pts[3].x)*.44,y:pts[3].y+(pts[2].y-pts[3].y)*.44};line(c,a,b,'rgba(255,255,255,.88)',2)}}
-function faceLabel(c,P,D,x0,x1,z0,z1,text){const label=document.createElement('canvas');label.width=360;label.height=82;const lc=label.getContext('2d');lc.clearRect(0,0,label.width,label.height);lc.fillStyle='#392b20';lc.textAlign='center';lc.textBaseline='middle';lc.font='900 60px "Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif';const t=(text||'BUILDING').slice(0,12);lc.fillText(t,label.width/2,label.height/2,label.width-24);const tl=P(x0,D+.012,z1),tr=P(x1,D+.012,z1),bl=P(x0,D+.012,z0),vx={x:tr.x-tl.x,y:tr.y-tl.y},vy={x:bl.x-tl.x,y:bl.y-tl.y};c.save();c.transform(vx.x/label.width,vx.y/label.width,vy.x/label.height,vy.y/label.height,tl.x,tl.y);c.drawImage(label,0,0);c.restore()}
+function drawFaceCanvas(c,face,u0,u1,z0,z1,canvas){const pts=faceQuad(face,u0,u1,z0,z1),tl=pts[3],tr=pts[2],bl=pts[0],vx={x:tr.x-tl.x,y:tr.y-tl.y},vy={x:bl.x-tl.x,y:bl.y-tl.y};c.save();c.transform(vx.x/canvas.width,vx.y/canvas.width,vy.x/canvas.height,vy.y/canvas.height,tl.x,tl.y);c.drawImage(canvas,0,0);c.restore()}
+function drawLogoGlyph(c,shape,x,y,size,color){c.save();c.translate(x,y);c.strokeStyle=color;c.fillStyle=color;c.lineWidth=Math.max(5,size*.09);c.lineCap='round';c.lineJoin='round';const r=size*.34;if(shape==='star'){c.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.45:r;c.lineTo(Math.cos(a)*rr,Math.sin(a)*rr)}c.closePath();c.fill()}else if(shape==='pen'){c.rotate(-.7);c.beginPath();c.moveTo(-r,0);c.lineTo(r*.55,0);c.stroke();c.beginPath();c.moveTo(r*.55,-r*.28);c.lineTo(r,r*.02);c.lineTo(r*.55,r*.28);c.closePath();c.fill()}else if(shape==='book'){c.strokeRect(-r,-r*.72,r*.92,r*1.44);c.strokeRect(r*.08,-r*.72,r*.92,r*1.44);c.beginPath();c.moveTo(0,-r*.7);c.lineTo(0,r*.72);c.stroke()}else if(shape==='flower'){for(let i=0;i<6;i++){const a=i*Math.PI/3;c.beginPath();c.ellipse(Math.cos(a)*r*.55,Math.sin(a)*r*.55,r*.42,r*.22,a,0,Math.PI*2);c.fill()}c.fillStyle=shade(color,-45);c.beginPath();c.arc(0,0,r*.3,0,Math.PI*2);c.fill()}else if(shape==='clock'){c.beginPath();c.arc(0,0,r,0,Math.PI*2);c.stroke();c.beginPath();c.moveTo(0,0);c.lineTo(0,-r*.62);c.moveTo(0,0);c.lineTo(r*.5,r*.2);c.stroke()}else if(shape==='shield'){c.beginPath();c.moveTo(0,r);c.bezierCurveTo(-r*.85,r*.42,-r*.72,-r*.72,0,-r);c.bezierCurveTo(r*.72,-r*.72,r*.85,r*.42,0,r);c.fill()}else if(shape==='coffee'){c.strokeRect(-r,-r*.45,r*1.45,r*.95);c.beginPath();c.arc(r*.58,0,r*.42,-Math.PI/2,Math.PI/2);c.stroke();c.beginPath();c.moveTo(-r*.45,-r*.7);c.bezierCurveTo(-r*.65,-r,-r*.1,-r,0,-r*1.25);c.moveTo(r*.05,-r*.7);c.bezierCurveTo(-r*.1,-r,r*.45,-r,r*.5,-r*1.25);c.stroke()}else if(shape==='chicken'){c.beginPath();c.arc(0,r*.08,r*.72,0,Math.PI*2);c.fill();c.beginPath();c.moveTo(r*.55,-r*.08);c.lineTo(r*1.05,r*.08);c.lineTo(r*.55,r*.28);c.closePath();c.fill();c.fillStyle=shade(color,-65);c.beginPath();c.arc(r*.25,-r*.15,r*.09,0,Math.PI*2);c.fill()}c.restore()}
+function windowOnFace(c,face,u0,u1,z0,z1){const canvas=document.createElement('canvas');canvas.width=180;canvas.height=210;const w=canvas.getContext('2d'),frame=state.windowFrameColor,glass=face.axis==='front'?state.glassColor:shade(state.glassColor,-18);w.clearRect(0,0,180,210);w.lineWidth=16;w.strokeStyle=frame;w.fillStyle=glass;const style=state.windowStyle;if(style==='arched'){w.beginPath();w.moveTo(18,192);w.lineTo(18,86);w.arc(90,86,72,Math.PI,0);w.lineTo(162,192);w.closePath();w.fill();w.stroke()}else{const radius=style==='standard'||style==='shop'?14:3;w.beginPath();w.roundRect(10,10,160,190,radius);w.fill();w.stroke()}w.strokeStyle=shade(frame,10);w.lineWidth=8;if(style==='sash'){w.beginPath();w.moveTo(90,16);w.lineTo(90,194);w.moveTo(16,105);w.lineTo(164,105);w.stroke()}else if(style==='lattice'){for(const x of [55,90,125]){w.beginPath();w.moveTo(x,16);w.lineTo(x,194);w.stroke()}for(const y of [70,115,160]){w.beginPath();w.moveTo(16,y);w.lineTo(164,y);w.stroke()}}else if(style==='industrial'){for(const x of [45,90,135]){w.beginPath();w.moveTo(x,16);w.lineTo(x,194);w.stroke()}w.beginPath();w.moveTo(16,105);w.lineTo(164,105);w.stroke()}else if(style==='shop'){w.beginPath();w.moveTo(18,158);w.lineTo(162,158);w.stroke()}if(state.tone==='chibi'){const g=w.createLinearGradient(0,0,180,210);g.addColorStop(0,'rgba(255,255,255,.48)');g.addColorStop(.32,'rgba(255,255,255,.05)');g.addColorStop(1,'rgba(12,43,62,.18)');w.fillStyle=g;w.fillRect(18,18,144,174);w.strokeStyle='rgba(255,255,255,.72)';w.lineWidth=5;w.beginPath();w.moveTo(34,35);w.lineTo(92,35);w.stroke()}drawFaceCanvas(c,face,u0,u1,z0,z1,canvas)}
+const SIGN_FONTS={gothic:'900 68px "Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif',mincho:'800 68px "Yu Mincho","Hiragino Mincho ProN",serif',rounded:'900 66px "Hiragino Maru Gothic ProN","Yu Gothic",sans-serif',hand:'700 68px cursive',classic:'900 66px "Yu Mincho","Hiragino Mincho ProN",serif'};
+function signCanvas(text,vertical=false){const canvas=document.createElement('canvas');canvas.width=vertical?150:420;canvas.height=vertical?360:100;const c=canvas.getContext('2d'),W=canvas.width,H=canvas.height,style=state.signStyle;c.clearRect(0,0,W,H);c.fillStyle=state.accentColor;c.strokeStyle=shade(state.accentColor,-70);c.lineWidth=10;if(style==='capsule'||style==='neon'){c.beginPath();c.roundRect(7,7,W-14,H-14,H*.42);c.fill();c.stroke()}else if(style==='banner'){c.beginPath();c.moveTo(8,8);c.lineTo(W-8,8);c.lineTo(W-24,H-7);c.lineTo(W*.5,H-18);c.lineTo(24,H-7);c.closePath();c.fill();c.stroke()}else{c.beginPath();c.roundRect(7,7,W-14,H-14,style==='board'?8:3);c.fill();c.stroke()}if(style==='board'){c.strokeStyle='rgba(255,246,220,.35)';c.lineWidth=4;for(const y of [H*.3,H*.7]){c.beginPath();c.moveTo(15,y);c.lineTo(W-15,y);c.stroke()}}if(style==='neon'){c.shadowColor=state.signTextColor;c.shadowBlur=18;c.strokeStyle=state.signTextColor;c.lineWidth=3;c.strokeRect(18,15,W-36,H-30)}c.shadowBlur=0;c.fillStyle=state.signTextColor;c.textAlign='center';c.textBaseline='middle';c.font=SIGN_FONTS[state.signFont]||SIGN_FONTS.gothic;const t=(text||state.name||'BUILDING').slice(0,20);if(vertical){const chars=[...t].slice(0,6),fs=Math.min(58,(H-32)/Math.max(1,chars.length));c.font=(SIGN_FONTS[state.signFont]||SIGN_FONTS.gothic).replace(/\d+px/,`${fs}px`);chars.forEach((ch,i)=>c.fillText(ch,W/2,22+fs*.65+i*fs,W-24))}else{const logoSpace=state.logoShape!=='none'&&state.logoPlacement==='sign'?H*.88:0;c.fillText(t,W/2+logoSpace*.2,H/2,W-24-logoSpace);if(logoSpace)drawLogoGlyph(c,state.logoShape,34,H/2,H*.72,state.logoColor)}return canvas}
 function isoBox(c,P,x,y,z,w,d,h,colors){const p000=P(x,y,z),p100=P(x+w,y,z),p110=P(x+w,y+d,z),p010=P(x,y+d,z),p001=P(x,y,z+h),p101=P(x+w,y,z+h),p111=P(x+w,y+d,z+h),p011=P(x,y+d,z+h);toonPoly(c,[p010,p110,p111,p011],colors.front);toonPoly(c,[p110,p100,p101,p111],colors.side);toonPoly(c,[p001,p101,p111,p011],colors.top,null,1,38,-8)}
 function drawWallTexture(c,P,W,D,H){
   const front='rgba(54,43,33,.17)',side='rgba(19,29,34,.22)';
-  if(state.material==='wood'||state.material==='tile'){
-    const step=state.material==='wood'?.42:.62;for(let x=step;x<W;x+=step)line(c,P(x,D,0),P(x,D,H),front,.7);for(let y=step;y<D;y+=step)line(c,P(W,y,0),P(W,y,H),side,.7);
+  if(state.material==='wood'||state.material==='tile'||state.material==='concrete'){
+    const step=state.material==='wood'?.42:state.material==='concrete'?1.5:.62;for(let x=step;x<W;x+=step)line(c,P(x,D,0),P(x,D,H),front,.7);for(let y=step;y<D;y+=step)line(c,P(W,y,0),P(W,y,H),side,.7);
   }
   if(state.material==='brick'||state.material==='tile'||state.material==='stone'){
     const hz=state.material==='tile'?12:state.material==='stone'?15:10;for(let z=hz;z<H;z+=hz){line(c,P(0,D,z),P(W,D,z),front,.7);line(c,P(W,D,z),P(W,0,z),side,.7)}
     if(state.material==='brick'||state.material==='stone')for(let z=0,row=0;z<H;z+=hz,row++){const step=state.material==='stone'?1.1:.75,off=row%2?step*.5:0;for(let x=off;x<W;x+=step)line(c,P(x,D,z),P(x,D,Math.min(H,z+hz)),front,.55);for(let y=off;y<D;y+=step)line(c,P(W,y,z),P(W,y,Math.min(H,z+hz)),side,.55)}
   }
+  if(state.material==='woodHorizontal'||state.material==='siding'){const hz=state.material==='siding'?7:9;for(let z=hz;z<H;z+=hz){line(c,P(0,D,z),P(W,D,z),front,state.material==='siding'?1.15:.75);line(c,P(W,D,z),P(W,0,z),side,state.material==='siding'?1.15:.75)}if(state.material==='siding')for(let z=hz;z<H;z+=hz){line(c,P(0,D,z-1.4),P(W,D,z-1.4),'rgba(255,255,255,.12)',.7);line(c,P(W,D,z-1.4),P(W,0,z-1.4),'rgba(255,255,255,.08)',.7)}}
+  if(state.material==='concrete'){for(let z=18;z<H;z+=18){line(c,P(0,D,z),P(W,D,z),front,.7);line(c,P(W,D,z),P(W,0,z),side,.7)}for(let x=.35;x<W;x+=1.5)for(let z=9;z<H;z+=18){const p=P(x,D,z);c.fillStyle='rgba(50,58,61,.25)';c.beginPath();c.arc(p.x,p.y,1.2,0,Math.PI*2);c.fill()}}
+  if(state.material==='halfTimber'){const beam=shade(state.accentColor,-68);for(const x of [0,W*.5,W])line(c,P(x,D,0),P(x,D,H),beam,3);for(const y of [0,D*.5,D])line(c,P(W,y,0),P(W,y,H),shade(beam,-15),3);for(let f=0;f<state.floors;f++){const z=f*state.floorHeight,z1=Math.min(H,z+state.floorHeight);line(c,P(0,D,z),P(W,D,z1),beam,2.6);line(c,P(W,D,z),P(0,D,z1),beam,2.6);line(c,P(W,0,z),P(W,D,z1),shade(beam,-15),2.6)}}
   if(state.material==='stucco'){for(let i=0;i<Math.ceil(W*3);i++){const x=(i*.73+.25)%W,z=8+(i*17)%Math.max(12,H-12);line(c,P(x,D,z),P(Math.min(W,x+.12),D,z+1.5),'rgba(95,79,53,.16)',.8)}for(let i=0;i<Math.ceil(D*3);i++){const y=(i*.61+.2)%D,z=7+(i*13)%Math.max(12,H-12);line(c,P(W,y,z),P(W,Math.min(D,y+.12),z+1.5),'rgba(49,54,48,.16)',.8)}}
 }
 function drawDetails(c,P,W,D,H,scale){
   const fh=state.floorHeight,trim=shade(state.accentColor,-28),trimDark=shade(state.accentColor,-78);
   if(state.hasTrim){isoBox(c,P,0,D-.06,0,.13,.12,H,{front:trim,side:trimDark,top:shade(trim,18)});isoBox(c,P,W-.13,D-.06,0,.13,.12,H,{front:trim,side:trimDark,top:shade(trim,18)})}
-  if(state.hasSign){const z=Math.min(H-14,fh*.77),sw=Math.min(W*.76,3.8),sx=(W-sw)/2;quadOnFace(c,{axis:'front',D,W,P},sx,sx+sw,z,z+12,state.accentColor,trimDark);faceLabel(c,P,D,sx+.08,sx+sw-.08,z+1,z+11,state.name)}
+  if(state.logoShape!=='none'&&state.logoPlacement!=='sign'){const badge=document.createElement('canvas');badge.width=badge.height=180;const bc=badge.getContext('2d'),s=state.logoSize/100;bc.fillStyle=state.signStyle==='neon'?'rgba(20,27,34,.86)':state.accentColor;bc.strokeStyle=shade(state.accentColor,-65);bc.lineWidth=10;bc.beginPath();bc.arc(90,90,72*s,0,Math.PI*2);bc.fill();bc.stroke();drawLogoGlyph(bc,state.logoShape,90,90,125*s,state.logoColor);const bw=Math.min(1.15*s,W*.26),bx=state.logoPlacement==='left'?W*.12:state.logoPlacement==='right'?W-bw-W*.12:(W-bw)/2,bz=state.logoPlacement==='upper'?Math.max(fh,H-24*s):Math.max(8,fh*.42);drawFaceCanvas(c,{axis:'front',D,W,P},bx,bx+bw,bz,bz+20*s,badge)}
   if(state.hasAwning){const z=Math.min(H-8,fh*.69),x0=W*.12,x1=W*.88,edge=D+.42;toonPoly(c,[P(x0,D,z+7),P(x1,D,z+7),P(x1,edge,z),P(x0,edge,z)],state.accentColor,trimDark,1.4,38,-12);toonPoly(c,[P(x0,edge,z),P(x1,edge,z),P(x1,edge,z-5),P(x0,edge,z-5)],shade(state.accentColor,-18),trimDark,1.2,25,-18);for(let x=x0;x<x1;x+=(x1-x0)/6)line(c,P(x,edge,z),P(x,edge,z-5),'rgba(255,244,210,.82)',1.2)}
+  if(state.hasSign){const vertical=state.signStyle==='vertical',size=state.signSize/100,sw=vertical?Math.min(.82,W*.22):Math.min(W*.82,4.5)*size,sh=vertical?Math.min(32,H*.45):18*size;let sx=state.signPosition==='left'?W*.08:state.signPosition==='right'?W-sw-W*.08:(W-sw)/2;sx=Math.max(.08,Math.min(W-sw-.08,sx));let z=state.signHeight==='high'?H-sh-8:state.signHeight==='middle'?H*.5-sh*.5:Math.min(H-sh-5,fh*.36);z=Math.max(5,z);if(state.signStyle==='hanging'){const a=P(sx+sw*.2,D+.04,z+sh+5),b=P(sx+sw*.8,D+.04,z+sh+5);line(c,a,P(sx+sw*.2,D+.04,z+sh),'#39444a',2);line(c,b,P(sx+sw*.8,D+.04,z+sh),'#39444a',2)}drawFaceCanvas(c,{axis:'front',D,W,P},sx,sx+sw,z,z+sh,signCanvas(state.signText||state.name,vertical))}
   if(state.hasAC){const y=Math.max(.25,D*.18),z=Math.min(H-17,fh*.18);isoBox(c,P,W+.02,y,z,.28,.9,15,{front:'#d9e2e5',side:'#9ba9ae',top:'#f4f7f5'});const fan=P(W+.305,y+.46,z+7),rg=c.createRadialGradient(fan.x-2*scale,fan.y-2*scale,1,fan.x,fan.y,5*scale);rg.addColorStop(0,'#cbd5d8');rg.addColorStop(.55,'#819096');rg.addColorStop(1,'#526168');c.fillStyle=state.tone==='chibi'?rg:'#77858b';c.beginPath();c.arc(fan.x,fan.y,4.5*scale,0,Math.PI*2);c.fill();c.strokeStyle='#536168';c.lineWidth=1.2;c.stroke();line(c,P(W+.28,y+.88,z+2),P(W+.28,y+.88,0),'#c8d0ce',1.7)}
   if(state.hasPlants){for(const x of [Math.min(.4,W*.18),Math.max(.4,W-.75)]){isoBox(c,P,x,D+.18,0,.55,.48,7,{front:'#a96d46',side:'#70442f',top:'#c38a5a'});const pp=P(x+.28,D+.42,11);for(let i=0;i<3;i++){const px=pp.x+(i-1)*5*scale,py=pp.y-(i%2)*3*scale,rg=c.createRadialGradient(px-2*scale,py-3*scale,1,px,py,7*scale);rg.addColorStop(0,'#a9d77d');rg.addColorStop(.46,i===1?'#5f9d5a':'#78b667');rg.addColorStop(1,'#3e7043');c.fillStyle=state.tone==='chibi'?rg:(i===1?'#4e8a51':'#68a35b');c.beginPath();c.arc(px,py,7*scale,0,Math.PI*2);c.fill();c.strokeStyle='#355b39';c.lineWidth=1.2;c.stroke();if(state.tone==='chibi'){c.fillStyle='rgba(255,255,220,.5)';c.beginPath();c.arc(px-2*scale,py-3*scale,1.5*scale,0,Math.PI*2);c.fill()}}}}
   if(state.hasLamps){for(const x of [Math.max(.28,W*.22),Math.min(W-.28,W*.78)]){const p=P(x,D+.03,fh*.58);line(c,P(x,D,fh*.52),p,'#313a3d',2);c.fillStyle='#ffe39a';c.shadowColor='#ffd36c';c.shadowBlur=8*scale;c.beginPath();c.arc(p.x,p.y,4.5*scale,0,Math.PI*2);c.fill();c.shadowBlur=0;c.strokeStyle='#584b34';c.stroke()}}
 }
+function drawRoofFinish(c,P,W,D,H,scale,topZ){const edge=shade(state.roofColor,-32);line(c,P(0,D,H),P(W,D,H),edge,2.2);line(c,P(W,D,H),P(W,0,H),shade(edge,-12),1.8);if(state.roofMaterial==='tile'){const a=P(0,D,H+1),b=P(W,D,H+1),n=Math.max(5,Math.round(W*3));for(let i=0;i<=n;i++){const t=i/n,x=a.x+(b.x-a.x)*t,y=a.y+(b.y-a.y)*t;c.fillStyle=i%2?shade(state.roofColor,10):shade(state.roofColor,-5);c.beginPath();c.arc(x,y,2.2*scale,0,Math.PI);c.fill()}}else if(state.roofMaterial==='metal'){for(let x=.35;x<W;x+=.55)line(c,P(x,D,H+1),P(x,D*.5,topZ-3),'rgba(255,255,255,.22)',.9)}else if(state.roofMaterial==='slate'||state.roofMaterial==='shingle'){for(let i=1;i<5;i++){const t=i/5;line(c,P(0,D*(1-t),H+(topZ-H)*t),P(W,D*(1-t),H+(topZ-H)*t),state.roofMaterial==='slate'?'rgba(20,28,33,.28)':'rgba(70,42,28,.27)',.8)}}else if(state.roofMaterial==='green'){for(let i=0;i<Math.ceil((W+D)*2);i++){const x=(i*.73)%W,y=(i*.47)%D,z=state.roof==='flat'?H+8:topZ-4;const p=P(x,y,z);c.fillStyle=i%2?'#6f9e58':'#8ab768';c.beginPath();c.arc(p.x,p.y,2.8*scale,0,Math.PI*2);c.fill()}}if(state.hasChimney){const z=Math.max(H+5,topZ-9);isoBox(c,P,W*.68,D*.28,z,.42,.42,18,{front:'#a85f4b',side:'#724239',top:'#d68a68'});line(c,P(W*.68,D*.28,z+18),P(W*.68+.42,D*.28+.42,z+18),'rgba(255,233,210,.4)',1.2)}}
 function render(c,w,h,opt={}){
-  const exportMode=!!opt.export,scale=(opt.scale||1)*state.zoom,W=state.rotation%180===0?state.width:state.depth,D=state.rotation%180===0?state.depth:state.width,H=state.floors*state.floorHeight;
-  const ox=w*.5,oy=exportMode?h*.72:h*.68;
+  const exportMode=!!opt.export,W=state.rotation%180===0?state.width:state.depth,D=state.rotation%180===0?state.depth:state.width,H=state.floors*state.floorHeight,requestedScale=(opt.scale||1)*state.zoom,roofAllowance=state.roof==='flat'?14:54,fitWidth=(w*.84)/Math.max(1,(W+D)*TW*.5+140),fitHeight=(h*.78)/Math.max(1,H+roofAllowance+(W+D)*TH*.5),scale=Math.max(.28,Math.min(requestedScale,fitWidth,fitHeight));
+  const ox=w*.5,oy=H>180?h*.86:exportMode?h*.72:h*.68;
   c.clearRect(0,0,w,h);c.lineJoin='round';c.lineCap='round';
   if(!exportMode){
     const radius=9;for(let s=0;s<=radius*2;s++)for(let y=-radius;y<=radius;y++){const x=s-radius-y;if(x<-radius||x>radius)continue;const p=project(x,y,0,ox,oy,scale);poly(c,[p,project(x+1,y,0,ox,oy,scale),project(x+1,y+1,0,ox,oy,scale),project(x,y+1,0,ox,oy,scale)],(x+y)%2?'#33484a':'#3a5150',state.grid?'rgba(211,228,216,.16)':null)}
@@ -168,54 +246,127 @@ function render(c,w,h,opt={}){
   drawWallTexture(c,P,W,D,H);
   for(let f=1;f<state.floors;f++){const z=f*state.floorHeight;line(c,P(0,D,z),P(W,D,z),'rgba(45,42,36,.34)',1);line(c,P(W,D,z),P(W,0,z),'rgba(25,31,34,.36)',1)}
   for(let floor=0;floor<state.floors;floor++){
-    const z0=floor*state.floorHeight+state.floorHeight*.32,z1=z0+state.floorHeight*.34,n=Math.max(1,state.windows);
+    const isShop=state.windowStyle==='shop'&&floor===0,z0=floor*state.floorHeight+state.floorHeight*(isShop ? .15 : .32),z1=z0+state.floorHeight*(isShop ? .5 : .34),n=Math.max(1,state.windows);
     for(let i=0;i<n;i++){const u0=W*(i+.25)/n,u1=W*(i+.75)/n;if(!(floor===0&&i===Math.floor(n/2)&&state.rotation===0))windowOnFace(c,{...frontFace,D,W},u0,u1,z0,z1)}
     const sn=Math.max(1,Math.round(n*D/W));for(let i=0;i<sn;i++){const u0=D*(i+.25)/sn,u1=D*(i+.75)/sn;windowOnFace(c,{...sideFace,D,W},u0,u1,z0,z1)}
   }
   const doorFace=state.rotation===90||state.rotation===180?'side':'front';
   if(doorFace==='front'){const dw=Math.min(1.05,W*.25),cx=W*.5;quadOnFace(c,{...frontFace,D,W},cx-dw/2,cx+dw/2,0,state.floorHeight*.74,shade(state.accentColor,-35),shade(state.accentColor,-85))}
   else{const dw=Math.min(1.05,D*.3),cy=D*.5;quadOnFace(c,{...sideFace,D,W},cy-dw/2,cy+dw/2,0,state.floorHeight*.74,shade(state.accentColor,-35),shade(state.accentColor,-85))}
+  drawBuildingTypeDetails(c,P,W,D,H,scale);
   drawDetails(c,P,W,D,H,scale);
   drawIdentity(c,P,W,D,H,scale);
+  let roofTop=H+30;
   if(state.roof==='flat'){
-    toonPoly(c,[At,Bt,Ct,Dt],state.roofColor);const rh=7;toonPoly(c,[Dt,Ct,P(W,D,H+rh),P(0,D,H+rh)],shade(state.roofColor,10));toonPoly(c,[Ct,Bt,P(W,0,H+rh),P(W,D,H+rh)],shade(state.roofColor,-12));toonPoly(c,[P(0,0,H+rh),P(W,0,H+rh),P(W,D,H+rh),P(0,D,H+rh)],shade(state.roofColor,18),null,1,38,-10);
+    const rh=8;roofTop=H+rh;toonPoly(c,[At,Bt,Ct,Dt],state.roofColor);toonPoly(c,[Dt,Ct,P(W,D,H+rh),P(0,D,H+rh)],shade(state.roofColor,10));toonPoly(c,[Ct,Bt,P(W,0,H+rh),P(W,D,H+rh)],shade(state.roofColor,-12));toonPoly(c,[P(0,0,H+rh),P(W,0,H+rh),P(W,D,H+rh),P(0,D,H+rh)],shade(state.roofColor,18),null,1,38,-10);
   }else if(state.roof==='hip'){
-    const e=.26,rz=Math.min(48,Math.max(24,(W+D)*4)),R1=P(e,e,H),R2=P(W-e,e,H),R3=P(W-e,D-e,H),R4=P(e,D-e,H),ap=P(W*.5,D*.5,H+rz);
+    const e=.26,rz=Math.min(48,Math.max(24,(W+D)*4)),R1=P(e,e,H),R2=P(W-e,e,H),R3=P(W-e,D-e,H),R4=P(e,D-e,H),ap=P(W*.5,D*.5,H+rz);roofTop=H+rz;
     toonPoly(c,[R4,R3,ap],shade(state.roofColor,8),null,1,38,-12);toonPoly(c,[R3,R2,ap],shade(state.roofColor,-10),null,1,24,-20);toonPoly(c,[R1,R2,ap],shade(state.roofColor,16),null,1,44,-8);toonPoly(c,[R1,ap,R4],shade(state.roofColor,2),null,1,34,-14);
-  }else{
-    const rz=Math.min(50,Math.max(27,D*9)),r1=P(0,D*.5,H+rz),r2=P(W,D*.5,H+rz);
+  }else if(state.roof==='gable'){
+    const rz=Math.min(50,Math.max(27,D*9)),r1=P(0,D*.5,H+rz),r2=P(W,D*.5,H+rz);roofTop=H+rz;
     toonPoly(c,[Dt,Ct,r2,r1],shade(state.roofColor,7),null,1,38,-13);toonPoly(c,[Ct,Bt,r2],shade(state.roofColor,-12),null,1,24,-20);toonPoly(c,[At,r1,r2,Bt],shade(state.roofColor,16),null,1,44,-8);
+  }else if(state.roof==='shed'){
+    const rz=Math.min(48,24+D*5),lo=H+6,hi=H+rz,A1=P(0,0,lo),B1=P(W,0,lo),C1=P(W,D,hi),D1=P(0,D,hi);roofTop=hi;toonPoly(c,[D1,C1,B1,A1],shade(state.roofColor,12),null,1,38,-16);toonPoly(c,[Dt,Ct,C1,D1],shade(state.roofColor,2));toonPoly(c,[Ct,Bt,B1,C1],shade(state.roofColor,-14));
+  }else if(state.roof==='mansard'){
+    const e=Math.min(.65,Math.min(W,D)*.2),rz=Math.min(38,20+(W+D)*2),r1=P(e,e,H+rz),r2=P(W-e,e,H+rz),r3=P(W-e,D-e,H+rz),r4=P(e,D-e,H+rz);roofTop=H+rz;toonPoly(c,[Dt,Ct,r3,r4],shade(state.roofColor,5));toonPoly(c,[Ct,Bt,r2,r3],shade(state.roofColor,-13));toonPoly(c,[At,r1,r2,Bt],shade(state.roofColor,15));toonPoly(c,[r1,r2,r3,r4],shade(state.roofColor,22));
+  }else{
+    const rz=Math.min(44,22+D*6),v1=P(W*.5,0,H+7),v2=P(W*.5,D,H+7),l1=P(0,0,H+rz),l2=P(0,D,H+rz),r1=P(W,0,H+rz),r2=P(W,D,H+rz);roofTop=H+rz;toonPoly(c,[l2,v2,v1,l1],shade(state.roofColor,13));toonPoly(c,[v2,r2,r1,v1],shade(state.roofColor,-4));line(c,v1,v2,shade(state.roofColor,-48),2.4);
   }
+  drawRoofFinish(c,P,W,D,H,scale,roofTop);
   if(state.tone==='chibi'){line(c,Dt,Ct,'rgba(255,255,255,.34)',2);line(c,Ct,Bt,'rgba(255,255,255,.18)',1.6);line(c,D0,C,'rgba(255,228,182,.22)',1.4)}
   if(!exportMode){c.save();c.setLineDash([6,5]);line(c,P(0,0,0),P(W,0,0),'rgba(255,222,143,.78)',2);line(c,P(W,0,0),P(W,D,0),'rgba(255,222,143,.78)',2);line(c,P(W,D,0),P(0,D,0),'rgba(255,222,143,.78)',2);line(c,P(0,D,0),P(0,0,0),'rgba(255,222,143,.78)',2);c.restore()}
   return{W,D,H};
 }
+function drawBuildingTypeDetails(c,P,W,D,H,scale){
+  const face={axis:'front',D,W,P},fh=state.floorHeight;
+  if(state.buildingType==='japanese'){
+    const beam=shade(state.accentColor,-58),cx=W*.5,dw=Math.min(1.5,W*.42);
+    quadOnFace(c,face,cx-dw/2,cx+dw/2,0,fh*.7,'#e7ddc7',beam);
+    for(let i=1;i<4;i++){const x=cx-dw/2+dw*i/4;line(c,P(x,D+.02,0),P(x,D+.02,fh*.7),beam,1.2)}
+    line(c,P(cx-dw/2,D+.02,fh*.35),P(cx+dw/2,D+.02,fh*.35),beam,1.2);
+    const z=Math.min(H-6,fh*.82);toonPoly(c,[P(.05,D,z+5),P(W-.05,D,z+5),P(W-.05,D+.38,z),P(.05,D+.38,z)],shade(state.roofColor,4),shade(state.roofColor,-45),1.4,32,-14);
+  }else if(state.buildingType==='office'){
+    const cx=W*.5,dw=Math.min(1.55,W*.32);
+    quadOnFace(c,face,cx-dw/2,cx+dw/2,0,fh*.82,'#9fd0df','#334c58');
+    line(c,P(cx,D+.02,0),P(cx,D+.02,fh*.82),'#ecf8fa',1.4);
+    toonPoly(c,[P(cx-dw*.72,D,fh*.82),P(cx+dw*.72,D,fh*.82),P(cx+dw*.55,D+.4,fh*.72),P(cx-dw*.55,D+.4,fh*.72)],state.accentColor,shade(state.accentColor,-55),1.2,30,-15);
+  }else if(state.buildingType==='workshop'){
+    const x0=W*.12,x1=W*.72,z1=fh*.72;
+    quadOnFace(c,face,x0,x1,0,z1,shade(state.frontColor,-12),'#3e494b');
+    for(let z=7;z<z1;z+=7)line(c,P(x0,D+.02,z),P(x1,D+.02,z),'rgba(240,247,244,.35)',1);
+    const handle=P((x0+x1)/2,D+.03,8);line(c,{x:handle.x-5*scale,y:handle.y},{x:handle.x+5*scale,y:handle.y},'#273133',2);
+  }else if(state.buildingType==='western'){
+    for(const x of [W*.2,W*.8]){const p=P(x,D+.12,fh*.27);toonPoly(c,[{x:p.x-10*scale,y:p.y},{x:p.x+10*scale,y:p.y},{x:p.x+8*scale,y:p.y+5*scale},{x:p.x-8*scale,y:p.y+5*scale}],'#9b6148','#603d31');for(let i=-1;i<=1;i++){c.fillStyle=i===0?'#e48b93':'#f1c07d';c.beginPath();c.arc(p.x+i*6*scale,p.y-3*scale,3.5*scale,0,Math.PI*2);c.fill()}}
+  }
+}
 function drawIdentity(c,P,W,D,H,scale){
-  if(state.kind==='apartment'){for(let f=1;f<state.floors;f++){const z=f*state.floorHeight-state.floorHeight*.12;poly(c,[P(W*.1,D,z),P(W*.9,D,z),P(W*.9,D+.42,z),P(W*.1,D+.42,z)],'#82929a','#46565d');line(c,P(W*.1,D+.42,z),P(W*.9,D+.42,z),'#cad1d0',2);for(let x=W*.1;x<=W*.9;x+=Math.max(.35,W*.2))line(c,P(x,D+.42,z),P(x,D+.42,z+10),'#cad1d0',1.4)}}
-  if(state.kind==='school'){const z=H*.62;quadOnFace(c,{axis:'front',D,W,P},W*.39,W*.61,z,z+18,state.accentColor,shade(state.accentColor,-70));const cp=P(W*.5,D,H*.76);c.fillStyle='#f5ead2';c.beginPath();c.arc(cp.x,cp.y,7*scale,0,Math.PI*2);c.fill();c.strokeStyle='#665a48';c.stroke()}
-  if(state.kind==='station'){const cp=P(W*.5,D,H*.72);c.fillStyle='#f5ead2';c.beginPath();c.arc(cp.x,cp.y,9*scale,0,Math.PI*2);c.fill();c.strokeStyle='#665a48';c.lineWidth=1.5;c.stroke();line(c,cp,{x:cp.x,y:cp.y-5*scale},'#665a48',1);line(c,cp,{x:cp.x+4*scale,y:cp.y+2*scale},'#665a48',1)}
-  if(state.kind==='karaage'){for(const x of [.28,W-.28]){const p=P(x,D+.12,state.floorHeight*.54);c.fillStyle='#d8573f';c.beginPath();c.ellipse(p.x,p.y,6*scale,9*scale,0,0,Math.PI*2);c.fill();c.strokeStyle='#6d3027';c.stroke();line(c,P(x,D+.1,state.floorHeight*.72),{x:p.x,y:p.y-8*scale},'#47362f',1.4)}}
+  if(state.buildingType==='apartment'||(state.kind==='apartment'&&state.buildingType==='custom')){for(let f=1;f<state.floors;f++){const z=f*state.floorHeight-state.floorHeight*.12;poly(c,[P(W*.1,D,z),P(W*.9,D,z),P(W*.9,D+.42,z),P(W*.1,D+.42,z)],'#82929a','#46565d');line(c,P(W*.1,D+.42,z),P(W*.9,D+.42,z),'#cad1d0',2);for(let x=W*.1;x<=W*.9;x+=Math.max(.35,W*.2))line(c,P(x,D+.42,z),P(x,D+.42,z+10),'#cad1d0',1.4)}}
+  if(state.kind==='school'&&(state.buildingType==='public'||state.buildingType==='custom')&&state.logoShape==='none'){const z=H*.62;quadOnFace(c,{axis:'front',D,W,P},W*.39,W*.61,z,z+18,state.accentColor,shade(state.accentColor,-70));const cp=P(W*.5,D,H*.76);c.fillStyle='#f5ead2';c.beginPath();c.arc(cp.x,cp.y,7*scale,0,Math.PI*2);c.fill();c.strokeStyle='#665a48';c.stroke()}
+  if(state.kind==='station'&&(state.buildingType==='public'||state.buildingType==='custom')&&state.logoShape==='none'){const cp=P(W*.5,D,H*.72);c.fillStyle='#f5ead2';c.beginPath();c.arc(cp.x,cp.y,9*scale,0,Math.PI*2);c.fill();c.strokeStyle='#665a48';c.lineWidth=1.5;c.stroke();line(c,cp,{x:cp.x,y:cp.y-5*scale},'#665a48',1);line(c,cp,{x:cp.x+4*scale,y:cp.y+2*scale},'#665a48',1)}
+  if(state.kind==='karaage'&&(state.buildingType==='shop'||state.buildingType==='custom')){for(const x of [.28,W-.28]){const p=P(x,D+.12,state.floorHeight*.54);c.fillStyle='#d8573f';c.beginPath();c.ellipse(p.x,p.y,6*scale,9*scale,0,0,Math.PI*2);c.fill();c.strokeStyle='#6d3027';c.stroke();line(c,P(x,D+.1,state.floorHeight*.72),{x:p.x,y:p.y-8*scale},'#47362f',1.4)}}
 }
 function resize(){const r=cv.getBoundingClientRect();VIEW.w=Math.round(r.width);VIEW.h=Math.round(r.height);VIEW.dpr=Math.min(2,devicePixelRatio||1);cv.width=VIEW.w*VIEW.dpr;cv.height=VIEW.h*VIEW.dpr;ctx.setTransform(VIEW.dpr,0,0,VIEW.dpr,0,0);draw()}
-function draw(){render(ctx,VIEW.w,VIEW.h);const W=state.rotation%180===0?state.width:state.depth,D=state.rotation%180===0?state.depth:state.width;$('footprintLabel').textContent=`${W}×${D}マス`;$('toneLabel').textContent=state.tone==='chibi'?'3Dチビトーン':'設計用フラット';$('measure').textContent=`占有範囲 ${W}×${D}マス ／ 高さ ${state.floors}階。PNGの接地点は床の菱形と同じ2:1座標です。`;document.querySelectorAll('[data-rot]').forEach(b=>b.classList.toggle('active',Number(b.dataset.rot)===state.rotation))}
-function syncForm(){for(const id of ids)$(id).value=state[id];for(const id of detailIds)$(id).checked=!!state[id];$('zoom').value=Math.round(state.zoom*100);draw()}
-function applyPreset(id){state={...state,...PRESETS[id],rotation:0};syncForm()}
+const LABELS={buildingType:{custom:'プリセット',shop:'店舗',office:'ビル',apartment:'マンション・アパート',japanese:'和風の家',western:'洋風の家',public:'公共施設',workshop:'倉庫・工房'},material:{stucco:'塗り壁',wood:'縦張り木板',woodHorizontal:'横張り木板',brick:'レンガ',tile:'外壁タイル',stone:'石張り',concrete:'コンクリート',siding:'サイディング',halfTimber:'ハーフティンバー'},roof:{hip:'寄棟',gable:'切妻',flat:'陸屋根',shed:'片流れ',mansard:'マンサード',butterfly:'バタフライ'},windowStyle:{standard:'標準窓',sash:'十字サッシ',lattice:'格子窓',arched:'アーチ窓',shop:'店舗窓',industrial:'工場風窓'},signStyle:{board:'木製ボード',capsule:'角丸プレート',hanging:'吊り下げ',vertical:'縦看板',neon:'ネオン風',banner:'布バナー'},logoShape:{none:'ロゴなし',pen:'万年筆',star:'星',book:'本',flower:'花',chicken:'からあげ鳥',clock:'時計',shield:'校章',coffee:'カップ'}};
+function draw(){render(ctx,VIEW.w,VIEW.h);const W=state.rotation%180===0?state.width:state.depth,D=state.rotation%180===0?state.depth:state.width;$('footprintLabel').textContent=`${W}×${D}マス`;$('toneLabel').textContent=state.tone==='chibi'?'3Dチビトーン':'設計用フラット';$('measure').textContent=`${LABELS.buildingType[state.buildingType]} ／ 占有範囲 ${W}×${D}マス ／ 高さ ${state.floors}階。高層時は全体が入るよう自動調整します。`;$('windowsValue').textContent=`${state.windows}列`;$('signSizeValue').textContent=`${state.signSize}%`;$('logoSizeValue').textContent=`${state.logoSize}%`;$('designSummary').textContent=`${LABELS.buildingType[state.buildingType]} ／ ${LABELS.material[state.material]}の壁 × ${LABELS.roof[state.roof]}屋根 × ${LABELS.windowStyle[state.windowStyle]} ／ ${state.hasSign?LABELS.signStyle[state.signStyle]:'看板なし'} ／ ${LABELS.logoShape[state.logoShape]}`;document.querySelectorAll('[data-rot]').forEach(b=>b.classList.toggle('active',Number(b.dataset.rot)===state.rotation));if(draftReady){clearTimeout(draw.draftTimer);draw.draftTimer=setTimeout(()=>{localStorage.setItem(DRAFT_KEY,JSON.stringify(state));$('draftStatus').textContent='作りかけを自動保存しました。⌘/Ctrl＋Enterでも登録できます。'},220)}}
+function syncForm(){for(const id of ids)if($(id))$(id).value=state[id];for(const id of detailIds)$(id).checked=!!state[id];$('zoom').value=Math.round(state.zoom*100);draw()}
+function applyPreset(id){state={...state,...BASE_STYLE,...PRESETS[id],rotation:0};syncForm()}
+function applyBuildingType(type){if(type==='custom'){state.buildingType='custom';draw();return}state={...state,hasChimney:false,hasAC:false,hasPlants:false,hasAwning:false,hasTrim:false,hasLamps:true,logoShape:'none',logoPlacement:'sign',signStyle:'board',signFont:'gothic',...BUILDING_TYPES[type],buildingType:type};syncForm();toast(`${LABELS.buildingType[type]}の基本デザインに切り替えました`)}
+function changeFloors(delta){state.floors=Math.max(1,Math.min(12,Number(state.floors||1)+delta));$('floors').value=state.floors;draw()}
 function filename(){return(state.name||'building').replace(/[\\/:*?"<>|\s]+/g,'_').toLowerCase()}
 function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),800)}
+function hasFourVariants(record){return[0,90,180,270].every(rotation=>record?.imageBlobs?.[rotation] instanceof Blob)}
+async function renderVariantBlobs(config){
+  const previousState=state,previousDraftReady=draftReady,blobs={};
+  draftReady=false;
+  try{
+    for(const rotation of [0,90,180,270]){
+      state={...config,rotation,grid:true,shadow:true,zoom:1.34};
+      const out=document.createElement('canvas');out.width=1000;out.height=800;
+      render(out.getContext('2d'),out.width,out.height,{export:true});
+      blobs[rotation]=await canvasBlob(trimTransparentCanvas(out));
+    }
+  }finally{state=previousState;draftReady=previousDraftReady;draw()}
+  return blobs;
+}
+async function seedCityBuildingLibrary(){
+  const existing=await getAllLibraryBuildings(),names=new Set(existing.filter(r=>r?.type==='orengaoka-25d-building-library').map(r=>r.name));
+  let added=0,upgraded=0;
+  for(const presetId of CITY_PRESET_IDS){
+    const preset=PRESETS[presetId];
+    if(!preset||names.has(preset.name))continue;
+    const config={...preset,rotation:0,grid:true,shadow:true,zoom:1.34},imageBlobs=await renderVariantBlobs(config),record={id:`builtin_city_${presetId}`,type:'orengaoka-25d-building-library',projection:'2:1-orthographic',name:preset.name,kind:preset.kind||presetId,buildingType:preset.buildingType,width:Number(preset.width)||4,depth:Number(preset.depth)||3,to:`${preset.kind||presetId}_interior`,config,imageBlob:imageBlobs[0],imageBlobs,createdAt:Date.now(),updatedAt:Date.now()};
+    await putLibraryBuilding(record);existing.push(record);names.add(preset.name);added++;
+  }
+  for(const record of existing){
+    if(record?.type!=='orengaoka-25d-building-library'||!record.config||hasFourVariants(record))continue;
+    const config={...record.config,rotation:0},imageBlobs=await renderVariantBlobs(config);
+    await putLibraryBuilding({...record,projection:'2:1-orthographic',imageBlob:imageBlobs[0],imageBlobs,config,updatedAt:Date.now()});upgraded++;
+  }
+  return{added,upgraded};
+}
+function canvasBlob(canvas){return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('画像を作れませんでした')),'image/png'))}
+function trimTransparentCanvas(source,padding=24){const sc=source.getContext('2d'),data=sc.getImageData(0,0,source.width,source.height).data;let minX=source.width,minY=source.height,maxX=-1,maxY=-1;for(let y=0;y<source.height;y++)for(let x=0;x<source.width;x++)if(data[(y*source.width+x)*4+3]>3){if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y}if(maxX<0)return source;minX=Math.max(0,minX-padding);minY=Math.max(0,minY-padding);maxX=Math.min(source.width-1,maxX+padding);maxY=Math.min(source.height-1,maxY+padding);const out=document.createElement('canvas');out.width=maxX-minX+1;out.height=maxY-minY+1;out.getContext('2d').drawImage(source,minX,minY,out.width,out.height,0,0,out.width,out.height);return out}
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>$('toast').classList.remove('show'),1400)}
-for(const id of ids)$(id).addEventListener('input',e=>{state[id]=e.target.type==='number'||e.target.type==='range'?Number(e.target.value):e.target.value;draw()});
+for(const id of ids)if(id!=='buildingType')$(id).addEventListener('input',e=>{let value=e.target.type==='number'||e.target.type==='range'?Number(e.target.value):e.target.value;if(id==='floors')value=Math.max(1,Math.min(12,value||1));state[id]=value;draw()});
 for(const id of detailIds)$(id).addEventListener('change',e=>{state[id]=e.target.checked;draw()});
-$('preset').onchange=e=>applyPreset(e.target.value);$('zoom').oninput=e=>{state.zoom=Number(e.target.value)/100;draw()};
+$('preset').onchange=e=>applyPreset(e.target.value);$('buildingType').onchange=e=>applyBuildingType(e.target.value);$('floorDown').onclick=()=>changeFloors(-1);$('floorUp').onclick=()=>changeFloors(1);$('zoom').oninput=e=>{state.zoom=Number(e.target.value)/100;draw()};
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{const mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));$('basicPanel').classList.toggle('active',mode==='basic');$('designPanel').classList.toggle('active',mode==='design')});
 document.querySelectorAll('[data-rot]').forEach(b=>b.onclick=()=>{state.rotation=Number(b.dataset.rot);draw()});
 $('gridBtn').onclick=()=>{state.grid=!state.grid;$('gridBtn').classList.toggle('active',state.grid);$('gridBtn').textContent=`グリッド ${state.grid?'ON':'OFF'}`;draw()};
 $('shadowBtn').onclick=()=>{state.shadow=!state.shadow;$('shadowBtn').classList.toggle('active',state.shadow);$('shadowBtn').textContent=`影 ${state.shadow?'ON':'OFF'}`;draw()};
+$('registerBtn').onclick=async()=>{try{$('registerBtn').disabled=true;$('registerBtn').textContent='4方向を一括生成中…';const config=JSON.parse(JSON.stringify(state));config.rotation=0;const imageBlobs=await renderVariantBlobs(config),imageBlob=imageBlobs[0],id=editingLibraryId||`building_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,7)}`;const record={id,type:'orengaoka-25d-building-library',projection:'2:1-orthographic',name:state.name||'名前のない建物',kind:state.kind||'custom',buildingType:state.buildingType,width:Number(state.width)||4,depth:Number(state.depth)||3,to:`${state.kind||filename()}_interior`,config,imageBlob,imageBlobs,createdAt:Date.now(),updatedAt:Date.now()};await putLibraryBuilding(record);editingLibraryId=id;$('libraryStatus').textContent=`「${record.name}」の4方向を登録済み。もう一度押すと上書きします。`;$('registerBtn').textContent='4方向の登録内容を更新';toast('建物の4方向を一括登録しました')}catch(e){console.error(e);toast('登録に失敗しました')}finally{$('registerBtn').disabled=false;if(!editingLibraryId)$('registerBtn').textContent='4方向を一括登録'}};
 $('pngBtn').onclick=()=>{const out=document.createElement('canvas');out.width=1400;out.height=1100;const oc=out.getContext('2d');const old=state.zoom;state.zoom=1.55;render(oc,out.width,out.height,{export:true});state.zoom=old;out.toBlob(b=>download(b,`${filename()}_${state.rotation}deg.png`),'image/png');toast('透過PNGを書き出しました')};
 $('jsonBtn').onclick=()=>{download(new Blob([JSON.stringify({...state,type:'orengaoka-25d-building',projection:'2:1-orthographic'},null,2)],{type:'application/json'}),`${filename()}.json`);toast('設定JSONを書き出しました')};
 $('copyBtn').onclick=async()=>{const obj={kind:state.kind,category:'building',label:state.name,gx:0,gy:0,w:state.rotation%180===0?state.width:state.depth,h:state.rotation%180===0?state.depth:state.width,rotation:0,asset:`assets/town/buildings/made/${filename()}_${state.rotation}deg.png`,to:`${state.kind}_interior`};await navigator.clipboard.writeText(JSON.stringify(obj,null,2));toast('街用JSONをコピーしました')};
 $('savePresetBtn').onclick=()=>{localStorage.setItem('orengaoka-building-maker-custom',JSON.stringify(state));toast('カスタム設定を保存しました')};
+$('loadPresetBtn').onclick=()=>{try{const saved=JSON.parse(localStorage.getItem('orengaoka-building-maker-custom')||'null');if(!saved)throw new Error('empty');state={...state,...BASE_STYLE,...saved};syncForm();toast('保存デザインを読み込みました')}catch{toast('保存デザインがまだありません')}};
 $('resetBtn').onclick=()=>applyPreset($('preset').value);
-$('editorBtn').onclick=()=>location.href='town_tile_editor.html?sample=1';$('previewBtn').onclick=()=>location.href='town_elin_25d.html?v=3';
-window.addEventListener('resize',resize);applyPreset('stationery');resize();
+$('duplicateBtn').onclick=()=>{editingLibraryId=null;state.name=`${state.name||'建物'} バリエーション`;state.signText=state.hasSign?state.name:state.signText;syncForm();$('libraryStatus').textContent='元のデザインを残したまま、新しい建物として登録できます。';$('registerBtn').textContent='街で使う建物として登録';toast('バリエーションを作成しました')};
+$('newBtn').onclick=()=>{editingLibraryId=null;localStorage.removeItem(DRAFT_KEY);applyPreset($('preset').value);$('libraryStatus').textContent='新しい建物を作成中です。';$('registerBtn').textContent='街で使う建物として登録';toast('新規作成に切り替えました')};
+$('editorBtn').onclick=()=>location.href='town_tile_editor.html';$('previewBtn').onclick=()=>location.href='town_elin_25d.html?v=3';
+$('floorMakerBtn').onclick=()=>location.href='town_asset_maker.html?mode=tile';$('propMakerBtn').onclick=()=>location.href='town_asset_maker.html?mode=prop';
+window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();$('registerBtn').click()}});window.addEventListener('resize',resize);applyPreset('stationery');let restored=false;try{const handoff=JSON.parse(localStorage.getItem('orengaoka-building-maker-edit')||'null');if(handoff?.config){editingLibraryId=handoff.id;state={...state,...BASE_STYLE,...handoff.config};localStorage.removeItem('orengaoka-building-maker-edit');syncForm();$('libraryStatus').textContent=`「${handoff.name||state.name}」を再編集中。登録内容を更新できます。`;$('registerBtn').textContent='登録内容を更新';restored=true}}catch(e){}if(!restored)try{const draft=JSON.parse(localStorage.getItem(DRAFT_KEY)||'null');if(draft){state={...state,...BASE_STYLE,...draft};syncForm();$('draftStatus').textContent='前回の作りかけを復元しました。';restored=true}}catch(e){}draftReady=true;resize();
+if(new URLSearchParams(location.search).get('seedLibrary')==='1')seedCityBuildingLibrary().then(result=>parent.postMessage({type:'orengaoka-city-library-seeded',...result},location.origin)).catch(error=>{console.error(error);parent.postMessage({type:'orengaoka-city-library-seeded',added:0,upgraded:0,error:true},location.origin)});
 </script>
 </body>
 </html>

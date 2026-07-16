@@ -20,6 +20,11 @@
   .row{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
   .palette{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .palette button{min-height:44px;text-align:left}
+  .custom-building-button{display:grid!important;grid-template-columns:48px minmax(0,1fr);gap:7px;align-items:center;padding:5px!important}
+  .custom-building-button img{width:48px;height:44px;object-fit:contain;background:repeating-conic-gradient(#dfe5e7 0 25%,#fff 0 50%) 50%/12px 12px;border-radius:6px}
+  .library-empty{grid-column:1/-1;padding:9px;border:1px dashed #52647b;border-radius:8px;color:#97a8be;font-size:11px;line-height:1.5}
+  .library-refreshed{animation:libraryFlash .65s ease}
+  @keyframes libraryFlash{0%{filter:brightness(1)}35%{filter:brightness(1.6);transform:scale(1.01)}100%{filter:brightness(1);transform:scale(1)}}
   .palette .category-title{grid-column:1/-1;color:#ffd27a;font-size:11px;font-weight:900;margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.08)}
   label{display:block;font-size:11px;color:#aebbd0;margin-top:9px;font-weight:900}
   input,select,textarea{width:100%;background:#111923;color:#f5f1df;border:1px solid #405066;border-radius:8px;padding:7px;margin-top:4px}
@@ -27,6 +32,10 @@
   #stageWrap{position:relative;overflow:hidden;background:#d7d0bd}
   canvas{display:block;width:100%;height:100%;cursor:crosshair}
   canvas.panning{cursor:grabbing}
+  #objectRotationToolbar{position:absolute;z-index:6;display:none;gap:4px;transform:translate(-50%,-100%);padding:5px;background:rgba(14,19,29,.96);border:1px solid #e0b05e;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35);white-space:nowrap}
+  #objectRotationToolbar.show{display:flex}
+  #objectRotationToolbar button{min-width:54px;padding:6px 8px;font-size:11px}
+  #objectRotationToolbar button.active{background:#d7a85b;color:#17202a;border-color:#ffe0a4}
   #toast{position:absolute;left:50%;top:18px;transform:translateX(-50%);background:rgba(14,19,29,.94);border:1px solid #e0b05e;color:#fff3c7;padding:9px 14px;border-radius:10px;font-size:12px;font-weight:900;opacity:0;pointer-events:none;transition:.2s}
   #toast.show{opacity:1}
   .mini{font-size:11px;color:#97a8be}
@@ -43,7 +52,7 @@
 <div id="app">
   <aside>
     <h1>タイル式 街編集</h1>
-    <p>1マスずつ地面を塗って、その上に建物PNGを複数マスサイズで配置します。Elinみたいな「マス基準」の街作り用です。</p>
+    <p>2:1の菱形マスに地面を塗って、その上に建物PNGを複数マスサイズで配置します。Elinみたいな「斜め視点・マス基準」の街作り用です。</p>
     <h2>編集モード</h2>
     <div class="row">
       <button id="paintMode" class="mode active">地面を塗る</button>
@@ -53,21 +62,30 @@
     </div>
     <h2>地面タイル</h2>
     <div id="tilePalette" class="palette"></div>
-    <h2>街パーツ</h2>
-    <div id="objectPalette" class="palette"></div>
+    <h2>自作の床・水辺</h2>
+    <label>自作素材を検索<input id="assetSearch" type="search" placeholder="名前で絞り込み"></label>
+    <p id="libraryCount" class="mini">自作素材を読み込み中…</p>
+    <div id="customTilePalette" class="palette"><div class="library-empty">床・小物メーカーで登録すると、ここに追加されます。</div></div>
+    <h2>菱形2.5D 建物・小物</h2>
+    <div id="objectPalette" class="library-empty">建物メーカーと床・小物メーカーで作った、2:1菱形対応素材だけを表示します。</div>
+    <div id="customBuildingPalette" class="palette"><div class="library-empty">建物メーカーで登録すると、ここに追加されます。</div></div>
+    <div class="row"><button id="reloadBuildingsBtn">菱形素材を再読込</button><button id="editBuildingBtn">メーカーで編集</button><button id="deleteBuildingBtn">登録削除</button></div>
+    <div class="row"><button id="assetMakerBtn">床・小物メーカー</button></div>
+    <div class="row"><button id="exportBuildingsBtn">建物パック保存</button><button id="importBuildingsBtn">建物パック読込</button><input id="buildingPackInput" type="file" accept="application/json,.json" hidden></div>
     <h2>操作</h2>
     <div class="row">
       <button id="saveBtn">ゲームに保存</button>
       <button id="sampleBtn">橙美サンプル街</button>
       <button id="resetBtn">初期化</button>
     </div>
+    <div class="row"><button id="starterLayoutBtn">登録素材でおすすめ配置</button></div>
     <div class="row"><button id="buildingMakerBtn">2.5D建物メーカー</button></div>
     <h2>操作ガイド</h2>
     <div class="guide">
       <div><b>地面を塗る</b><span>地面モードでドラッグ</span></div>
       <div><b>パーツを移動</b><span>パーツモードでドラッグ</span></div>
       <div><b>サイズ変更</b><span>四隅の黄色ハンドルをドラッグ</span></div>
-      <div><b>向きを変更</b><span>選択後に回転ボタン / Rキー</span></div>
+      <div><b>向きを変更</b><span>建物を選択→近くの4方向ボタン / Rキー</span></div>
       <div><b>マップ移動</b><span>普通のスクロール / トラックパッド</span></div>
       <div><b>マップ移動</b><span>右クリックしながらドラッグ</span></div>
       <div><b>マップ移動</b><span>スペースを押しながらドラッグ</span></div>
@@ -76,6 +94,12 @@
   </aside>
   <main id="stageWrap">
     <canvas id="cv"></canvas>
+    <div id="objectRotationToolbar" aria-label="建物の入口方向">
+      <button type="button" data-object-rotation="0" title="画面左下から入る">↙ 左下</button>
+      <button type="button" data-object-rotation="90" title="画面右下から入る">↘ 右下</button>
+      <button type="button" data-object-rotation="180" title="画面右上から入る">↗ 右上</button>
+      <button type="button" data-object-rotation="270" title="画面左上から入る">↖ 左上</button>
+    </div>
     <div id="toast"></div>
   </main>
   <aside id="right">
@@ -85,6 +109,12 @@
     <label>縦マス<input id="rowsInput" type="number" min="8" max="80"></label>
     <label>1マスpx<input id="tileSizeInput" type="number" min="24" max="80"></label>
     <div class="row"><button id="resizeMapBtn">サイズ反映</button></div>
+    <h2>座標で配置</h2>
+    <label>登録素材<select id="quickAssetSelect"><option value="">左の素材一覧と連動</option></select></label>
+    <div class="row"><label>X<input id="quickX" type="number" min="0" value="0"></label><label>Y<input id="quickY" type="number" min="0" value="0"></label></div>
+    <div class="row"><label>横幅<input id="quickW" type="number" min="1" value="1"></label><label>縦幅<input id="quickH" type="number" min="1" value="1"></label></div>
+    <div class="row"><button id="paintRectBtn">選択中の床で矩形塗り</button><button id="placeSelectedBtn">選択中のパーツを配置</button></div>
+    <p class="mini">広い範囲の地面づくりや、離れた場所への建物配置に使えます。</p>
     <h2>選択中</h2>
     <p id="selectionInfo" class="mini">地面タイルを選んでね。</p>
     <div id="objectForm" style="display:none">
@@ -92,7 +122,7 @@
       <label>横マス<input id="objWInput" type="number" min="1" max="20"></label>
       <label>縦マス<input id="objHInput" type="number" min="1" max="20"></label>
       <label>移動先ID<input id="objToInput"></label>
-      <label>向き<input id="objRotationInput" readonly></label>
+      <label>建物の正面・入口方向<input id="objRotationInput" readonly></label>
       <div class="row"><button id="rotateLeftBtn">↶ 左へ90°</button><button id="rotateRightBtn">↷ 右へ90°</button></div>
       <div class="row"><button id="applyObjectBtn">建物に反映</button></div>
     </div>
@@ -114,6 +144,7 @@
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
 const KEY='aono-tantei-town-tilemap-v1';
+const BUILDING_DB='aono-tantei-building-library',BUILDING_STORE='buildings';
 const VIEW={w:0,h:0,dpr:1};
 const TILE_TYPES=[
   {id:'concrete',label:'コンクリート',color:'#b8b8ad',accent:'#e4e0d3',walkable:true},
@@ -165,18 +196,38 @@ let map={
   tiles:[],
   objects:[]
 };
-let mode='paint',selectedTile='concrete',selectedObject=OBJECT_TYPES[0],selectedObjectId=null;
-let cam={x:-120,y:-80,scale:.92};
+let mode='paint',selectedTile='concrete',selectedObject=null,selectedObjectId=null,customBuildings=[],customTiles=[],placingNewObject=false;
+let cam={x:0,y:0,scale:.92};
 let pointerDown=false,pan=null,space=false,objectDrag=null;
 const imageCache={};
-function img(src){if(!src)return null;if(!imageCache[src]){const i=new Image();i.src=src+'?v=2';i.onload=draw;imageCache[src]=i;}return imageCache[src];}
+function img(src){if(!src)return null;if(!imageCache[src]){const i=new Image();i.src=src.startsWith('blob:')?src:src+'?v=2';i.onload=draw;imageCache[src]=i;}return imageCache[src];}
+function openBuildingDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(BUILDING_DB,1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(BUILDING_STORE))req.result.createObjectStore(BUILDING_STORE,{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+async function buildingDBAction(mode,action){const db=await openBuildingDB();return new Promise((resolve,reject)=>{const tx=db.transaction(BUILDING_STORE,mode),store=tx.objectStore(BUILDING_STORE),req=action(store);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);tx.oncomplete=()=>db.close()})}
+const getLibraryBuildings=()=>buildingDBAction('readonly',store=>store.getAll());
+const putLibraryBuilding=record=>buildingDBAction('readwrite',store=>store.put(record));
+const deleteLibraryBuilding=id=>buildingDBAction('readwrite',store=>store.delete(id));
+function isDiamondRecord(record){return record?.projection==='2:1-orthographic'||record?.type==='orengaoka-25d-building-library'||record?.type==='orengaoka-25d-asset-library'}
+function normalizeRotation(value){return((Math.round((Number(value)||0)/90)*90)%360+360)%360}
+const ROTATION_LABELS={0:'画面左下から入る',90:'画面右下から入る',180:'画面右上から入る',270:'画面左上から入る'};
+function assetForObject(o){if(!o.customBuildingId)return o.asset;const building=customBuildings.find(b=>b.customBuildingId===o.customBuildingId);return building?.assetUrls?.[normalizeRotation(o.rotation)]||building?.assetUrl||''}
+function customTileFor(id){return customTiles.find(t=>t.id===id)}
+function setEntranceForRotation(o){
+  if(o.category!=='building')return;
+  const rotation=normalizeRotation(o.rotation);let gx=o.gx,gy=o.gy;
+  if(rotation===0){gx=o.gx+Math.floor(o.w/2);gy=o.gy+o.h}
+  else if(rotation===90){gx=o.gx+o.w;gy=o.gy+Math.floor(o.h/2)}
+  else if(rotation===180){gx=o.gx+Math.floor(o.w/2);gy=o.gy-1}
+  else{gx=o.gx-1;gy=o.gy+Math.floor(o.h/2)}
+  o.entrance={gx:Math.max(0,Math.min(map.cols-1,gx)),gy:Math.max(0,Math.min(map.rows-1,gy))};o.entranceAuto=true;
+}
 function initTiles(){
   if(map.tiles.length===map.cols*map.rows)return;
   map=createSampleTown();
 }
 function makeObject(t,gx,gy,w=t.w,h=t.h){
   const o={id:'obj_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6),kind:t.id,category:t.category||'building',label:t.label,gx,gy,w,h,rotation:0,asset:t.asset||'',to:t.to||''};
-  if(o.category==='building')o.entrance={gx:gx+Math.floor(w/2),gy:gy+h};
+  if(t.customBuildingId)o.customBuildingId=t.customBuildingId;
+  if(o.category==='building')setEntranceForRotation(o);
   return o;
 }
 function createSampleTown(){
@@ -208,31 +259,13 @@ function createSampleTown(){
   rect(22,14,8,4,'grass');
   rect(25,22,5,4,'dirt');
   rect(10,23,7,2,'concrete');
-  const station=makeObject(OBJECT_TYPES[4],8,25,8,5);
-  station.entrance={gx:12,gy:25}; station.to='station';
-  const karaage=makeObject(OBJECT_TYPES[2],7,15,5,4);
-  karaage.entrance={gx:9,gy:19}; karaage.to='karaage_shop';
-  const stationery=makeObject(OBJECT_TYPES[0],16,14,5,4);
-  stationery.entrance={gx:18,gy:18}; stationery.to='hoshino_stationery';
-  const apartment=makeObject(OBJECT_TYPES[1],5,6,5,6);
-  apartment.label='青太のアパート'; apartment.entrance={gx:7,gy:12}; apartment.to='aota_room';
-  const school=makeObject(OBJECT_TYPES[3],27,7,7,5);
-  school.entrance={gx:30,gy:12}; school.to='school';
-  const addProp=(kind,gx,gy,rotation=0)=>{const t=OBJECT_TYPES.find(v=>v.id===kind),o=makeObject(t,gx,gy);o.rotation=rotation;data.objects.push(o);};
-  data.objects=[station,karaage,stationery,apartment,school];
-  addProp('bus_stop',23,25);addProp('traffic_light',17,24);addProp('traffic_light',22,29,180);
-  addProp('bench',12,21);addProp('vending',14,21);addProp('mailbox',22,17);addProp('bike',21,18);
-  addProp('fountain',31,20);addProp('playground',25,15);addProp('fence',34,12,90);
-  for(const [x,y] of [[3,4],[14,9],[23,7],[26,7],[35,6],[35,10],[30,24],[34,24]])addProp('tree',x,y);
-  for(const [x,y] of [[6,23],[15,23],[24,23],[28,23]])addProp('lamp',x,y);
-  for(const [x,y] of [[10,17],[12,17],[24,13],[26,13]])addProp('planter',x,y);
   return data;
 }
 function resize(){const r=cv.getBoundingClientRect();VIEW.w=r.width;VIEW.h=r.height;VIEW.dpr=Math.min(3,devicePixelRatio||1);cv.width=VIEW.w*VIEW.dpr;cv.height=VIEW.h*VIEW.dpr;ctx.setTransform(VIEW.dpr,0,0,VIEW.dpr,0,0);clampCam();draw();}
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),1500);}
 function clampCam(){
   const pad=map.tileSize*1.5;
-  const worldW=map.cols*map.tileSize,worldH=map.rows*map.tileSize;
+  const worldW=(map.cols+map.rows)*map.tileSize*.5,worldH=(map.cols+map.rows)*map.tileSize*.25;
   const viewW=VIEW.w/cam.scale,viewH=VIEW.h/cam.scale;
   if(worldW+pad*2<=viewW)cam.x=(worldW-viewW)/2;
   else cam.x=Math.max(-pad,Math.min(worldW-viewW+pad,cam.x));
@@ -241,8 +274,18 @@ function clampCam(){
 }
 function tileAt(gx,gy){return map.tiles[gy*map.cols+gx]||map.defaultTile;}
 function setTile(gx,gy,id){if(gx<0||gy<0||gx>=map.cols||gy>=map.rows)return;map.tiles[gy*map.cols+gx]=id;}
-function screenToGrid(clientX,clientY){const r=cv.getBoundingClientRect();const sx=(clientX-r.left)/cam.scale+cam.x,sy=(clientY-r.top)/cam.scale+cam.y;return{gx:Math.floor(sx/map.tileSize),gy:Math.floor(sy/map.tileSize),wx:sx,wy:sy};}
-function gridToScreen(gx,gy){return{x:(gx*map.tileSize-cam.x)*cam.scale,y:(gy*map.tileSize-cam.y)*cam.scale};}
+function gridToWorld(gx,gy){const tw=map.tileSize,th=tw*.5;return{x:(gx-gy)*tw*.5+map.rows*tw*.5,y:(gx+gy)*th*.5}}
+function screenToGrid(clientX,clientY){const r=cv.getBoundingClientRect(),wx=(clientX-r.left)/cam.scale+cam.x-map.rows*map.tileSize*.5,wy=(clientY-r.top)/cam.scale+cam.y,halfW=map.tileSize*.5,halfH=map.tileSize*.25,a=wx/halfW,b=wy/halfH,gx=(a+b)*.5,gy=(b-a)*.5;return{gx:Math.floor(gx),gy:Math.floor(gy),wx,wy};}
+function gridToScreen(gx,gy){const p=gridToWorld(gx,gy);return{x:(p.x-cam.x)*cam.scale,y:(p.y-cam.y)*cam.scale};}
+function cellDiamond(gx,gy){return[gridToScreen(gx,gy),gridToScreen(gx+1,gy),gridToScreen(gx+1,gy+1),gridToScreen(gx,gy+1)]}
+function objectFootprint(o){return[gridToScreen(o.gx,o.gy),gridToScreen(o.gx+o.w,o.gy),gridToScreen(o.gx+o.w,o.gy+o.h),gridToScreen(o.gx,o.gy+o.h)]}
+function frameMap(){
+  const worldW=(map.cols+map.rows)*map.tileSize*.5,worldH=(map.cols+map.rows)*map.tileSize*.25;
+  cam.scale=Math.max(.45,Math.min(1.15,Math.min((VIEW.w-72)/worldW,(VIEW.h-72)/worldH)));
+  cam.x=(worldW-VIEW.w/cam.scale)*.5;
+  cam.y=(worldH-VIEW.h/cam.scale)*.5;
+  clampCam();
+}
 function activeObject(){return map.objects.find(o=>o.id===selectedObjectId)||null;}
 function objectAt(gx,gy){return [...map.objects].reverse().find(o=>gx>=o.gx&&gy>=o.gy&&gx<o.gx+o.w&&gy<o.gy+o.h);}
 function entranceAt(gx,gy){return map.objects.find(o=>o.entrance&&o.entrance.gx===gx&&o.entrance.gy===gy);}
@@ -251,6 +294,7 @@ function clampObject(o){
   o.h=Math.max(1,Math.min(20,Math.round(o.h)||1));
   o.gx=Math.max(0,Math.min(map.cols-o.w,Math.round(o.gx)||0));
   o.gy=Math.max(0,Math.min(map.rows-o.h,Math.round(o.gy)||0));
+  if(o.category==='building'&&o.entranceAuto)setEntranceForRotation(o);
   if(o.entrance){
     o.entrance.gx=Math.max(0,Math.min(map.cols-1,Math.round(o.entrance.gx)));
     o.entrance.gy=Math.max(0,Math.min(map.rows-1,Math.round(o.entrance.gy)));
@@ -259,57 +303,72 @@ function clampObject(o){
 function draw(){
   ctx.clearRect(0,0,VIEW.w,VIEW.h);
   ctx.fillStyle='#111923';ctx.fillRect(0,0,VIEW.w,VIEW.h);
-  const ts=map.tileSize*cam.scale;
+  const tw=map.tileSize*cam.scale,th=tw*.5;
   for(let gy=0;gy<map.rows;gy++){
     for(let gx=0;gx<map.cols;gx++){
       const p=gridToScreen(gx,gy);
-      if(p.x+ts<0||p.y+ts<0||p.x>VIEW.w||p.y>VIEW.h)continue;
-      drawTile(tileAt(gx,gy),p.x,p.y,ts,gx,gy);
+      if(p.x+tw*.5<0||p.x-tw*.5>VIEW.w||p.y+th<0||p.y>VIEW.h)continue;
+      drawTile(tileAt(gx,gy),gx,gy);
     }
   }
   drawObjects();
   drawEntrances();
-  drawGrid(ts);
+  drawGrid();
+  updateObjectRotationToolbar();
 }
-function drawTile(id,x,y,s,gx,gy){
+function updateObjectRotationToolbar(){
+  const toolbar=$('objectRotationToolbar'),o=activeObject();
+  if(!o||o.category!=='building'||pan||objectDrag){toolbar.classList.remove('show');return;}
+  const pts=objectFootprint(o),centerX=pts.reduce((sum,p)=>sum+p.x,0)/pts.length,topY=Math.min(...pts.map(p=>p.y));
+  toolbar.style.left=`${Math.max(145,Math.min(VIEW.w-145,centerX))}px`;
+  toolbar.style.top=`${Math.max(58,Math.min(VIEW.h-10,topY-12))}px`;
+  toolbar.classList.toggle('show',centerX>-120&&centerX<VIEW.w+120&&topY>-20&&topY<VIEW.h+80);
+  for(const button of toolbar.querySelectorAll('[data-object-rotation]'))button.classList.toggle('active',Number(button.dataset.objectRotation)===normalizeRotation(o.rotation));
+}
+function drawTile(id,gx,gy){
+  const pts=cellDiamond(gx,gy),top=pts[0],right=pts[1],bottom=pts[2],left=pts[3],x=left.x,y=top.y,w=right.x-left.x,h=bottom.y-top.y,custom=customTileFor(id);
+  ctx.save();ctx.beginPath();ctx.moveTo(top.x,top.y);ctx.lineTo(right.x,right.y);ctx.lineTo(bottom.x,bottom.y);ctx.lineTo(left.x,left.y);ctx.closePath();ctx.clip();
+  if(custom){const im=img(custom.assetUrl);ctx.fillStyle='#7f8e8b';ctx.fillRect(x,y,w,h);if(im?.complete&&im.naturalWidth)ctx.drawImage(im,x,y,w,h);ctx.restore();return}
   const t=TILE_TYPES.find(v=>v.id===id)||TILE_TYPES[0];
-  ctx.fillStyle=t.color;ctx.fillRect(x,y,s,s);
+  ctx.fillStyle=t.color;ctx.fillRect(x,y,w,h);
   if(id==='concrete'||id==='sidewalk'){
-    ctx.strokeStyle='rgba(255,255,255,.13)';ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,s-1,s-1);
-    if(id==='sidewalk'){ctx.strokeStyle='rgba(70,72,75,.15)';ctx.beginPath();ctx.moveTo(x+s*.5,y);ctx.lineTo(x+s*.5,y+s);ctx.moveTo(x,y+s*.5);ctx.lineTo(x+s,y+s*.5);ctx.stroke();}
+    ctx.strokeStyle='rgba(255,255,255,.13)';ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,w-1,h-1);
+    if(id==='sidewalk'){ctx.strokeStyle='rgba(70,72,75,.15)';ctx.beginPath();ctx.moveTo(x+w*.5,y);ctx.lineTo(x+w*.5,y+h);ctx.moveTo(x,y+h*.5);ctx.lineTo(x+w,y+h*.5);ctx.stroke();}
   }else if(id==='road'||id==='shopping_road'||id==='parking'){
-    ctx.fillStyle='rgba(255,255,255,.10)';ctx.fillRect(x+s*.12,y+s*.12,s*.76,s*.76);
-    ctx.strokeStyle=t.accent;ctx.lineWidth=Math.max(1,2*cam.scale);ctx.setLineDash([10*cam.scale,8*cam.scale]);ctx.beginPath();ctx.moveTo(x+s*.5,y+s*.18);ctx.lineTo(x+s*.5,y+s*.82);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,255,255,.10)';ctx.fillRect(x+w*.12,y+h*.12,w*.76,h*.76);
+    ctx.strokeStyle=t.accent;ctx.lineWidth=Math.max(1,2*cam.scale);ctx.setLineDash([10*cam.scale,8*cam.scale]);ctx.beginPath();ctx.moveTo(x+w*.18,y+h*.5);ctx.lineTo(x+w*.82,y+h*.5);ctx.stroke();ctx.setLineDash([]);
   }else if(id==='crosswalk'){
-    ctx.fillStyle=t.accent;for(let i=0;i<4;i++)ctx.fillRect(x+s*.10,y+s*(.12+i*.22),s*.80,s*.10);
+    ctx.fillStyle=t.accent;for(let i=0;i<4;i++)ctx.fillRect(x+w*(.12+i*.2),y+h*.18,w*.1,h*.64);
   }else if(id==='river'){
-    ctx.fillStyle='rgba(255,255,255,.22)';ctx.beginPath();ctx.ellipse(x+s*.35,y+s*.45,s*.20,s*.04,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.22)';ctx.beginPath();ctx.ellipse(x+w*.48,y+h*.48,w*.22,h*.06,0,0,Math.PI*2);ctx.fill();
   }else if(id==='grass'||id==='weeds'||id==='flower'){
-    ctx.strokeStyle=t.accent;ctx.lineWidth=Math.max(1,1.4*cam.scale);for(let i=0;i<3;i++){const ox=((gx*17+gy*11+i*19)%32)/32*s,oy=((gx*13+gy*23+i*7)%30)/30*s;ctx.beginPath();ctx.moveTo(x+ox,y+oy+s*.15);ctx.lineTo(x+ox+s*.08,y+oy-s*.05);ctx.stroke();}
-    if(id==='flower'){ctx.fillStyle='#ffe38a';for(let i=0;i<3;i++){const ox=((gx*11+gy*17+i*13)%34)/34*s,oy=((gx*7+gy*19+i*9)%30)/30*s;ctx.beginPath();ctx.arc(x+ox,y+oy,Math.max(1.5,s*.035),0,Math.PI*2);ctx.fill();}}
+    ctx.strokeStyle=t.accent;ctx.lineWidth=Math.max(1,1.4*cam.scale);for(let i=0;i<3;i++){const ox=((gx*17+gy*11+i*19)%32)/32*w,oy=((gx*13+gy*23+i*7)%30)/30*h;ctx.beginPath();ctx.moveTo(x+ox,y+oy+h*.15);ctx.lineTo(x+ox+w*.04,y+oy-h*.1);ctx.stroke();}
+    if(id==='flower'){ctx.fillStyle='#ffe38a';for(let i=0;i<3;i++){const ox=((gx*11+gy*17+i*13)%34)/34*w,oy=((gx*7+gy*19+i*9)%30)/30*h;ctx.beginPath();ctx.arc(x+ox,y+oy,Math.max(1.5,w*.025),0,Math.PI*2);ctx.fill();}}
   }else if(id==='dirt'||id==='gravel'){
-    ctx.fillStyle='rgba(70,39,20,.18)';ctx.beginPath();ctx.ellipse(x+s*.35,y+s*.42,s*.06,s*.03,0,0,Math.PI*2);ctx.ellipse(x+s*.70,y+s*.67,s*.05,s*.025,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(70,39,20,.18)';ctx.beginPath();ctx.ellipse(x+w*.35,y+h*.42,w*.06,h*.05,0,0,Math.PI*2);ctx.ellipse(x+w*.70,y+h*.67,w*.05,h*.04,0,0,Math.PI*2);ctx.fill();
   }
+  ctx.restore();
 }
 function drawObjects(){
-  const items=[...map.objects].sort((a,b)=>(a.gy+a.h)-(b.gy+b.h));
+  const items=[...map.objects].sort((a,b)=>(a.gx+a.gy+a.w+a.h)-(b.gx+b.gy+b.w+b.h));
   for(const o of items){
-    const p=gridToScreen(o.gx,o.gy),w=o.w*map.tileSize*cam.scale,h=o.h*map.tileSize*cam.scale;
-    const im=img(o.asset),rotation=((Number(o.rotation)||0)%360+360)%360;
+    const footprint=objectFootprint(o),anchor=footprint[2];
+    const im=img(assetForObject(o)),rotation=((Number(o.rotation)||0)%360+360)%360;
+    const footprintW=Math.max(map.tileSize*.72*cam.scale,(o.w+o.h)*map.tileSize*.5*cam.scale);
+    const drawW=o.category==='building'?footprintW*1.02:Math.max(map.tileSize*.66*cam.scale,footprintW*.68);
+    const ratio=im?.complete&&im.naturalWidth?im.naturalHeight/im.naturalWidth:(o.category==='building'?1.08:1);
+    const drawH=Math.max(map.tileSize*.62*cam.scale,drawW*ratio);
     ctx.save();
     ctx.shadowColor='rgba(0,0,0,.28)';ctx.shadowBlur=10*cam.scale;ctx.shadowOffsetY=7*cam.scale;
-    ctx.translate(p.x+w/2,p.y+h/2);ctx.rotate(rotation*Math.PI/180);
-    const rw=rotation%180===0?w:h,rh=rotation%180===0?h:w;
-    if(im?.complete&&im.naturalWidth)ctx.drawImage(im,-rw/2,-rh/2,rw,rh);
-    else if(o.category==='prop')drawEditorProp(o.kind,rw,rh);
-    else{ctx.fillStyle='#8fa0ad';ctx.fillRect(-rw/2,-rh/2,rw,rh);ctx.fillStyle='#182332';ctx.fillText(o.label,-rw/2+8,-rh/2+18);}
-    ctx.setTransform(VIEW.dpr,0,0,VIEW.dpr,0,0);
-    ctx.shadowColor='transparent';
-    if(o.id===selectedObjectId){
-      ctx.strokeStyle='#ffe28c';ctx.lineWidth=3;ctx.setLineDash([7,5]);ctx.strokeRect(p.x-4,p.y-4,w+8,h+8);ctx.setLineDash([]);
-      drawResizeHandles(p.x,p.y,w,h);
-    }
+    ctx.translate(anchor.x,anchor.y+map.tileSize*.06*cam.scale);
+    if(o.category==='prop')ctx.rotate(rotation*Math.PI/180);
+    if(im?.complete&&im.naturalWidth)ctx.drawImage(im,-drawW/2,-drawH,drawW,drawH);
+    else if(o.category==='prop'){ctx.translate(0,-drawH*.5);drawEditorProp(o.kind,drawW,drawH);}
+    else{ctx.fillStyle='#8fa0ad';ctx.beginPath();ctx.moveTo(-drawW*.5,0);ctx.lineTo(0,-drawH);ctx.lineTo(drawW*.5,0);ctx.closePath();ctx.fill();ctx.fillStyle='#182332';ctx.fillText(o.label,-drawW*.42,-drawH*.2);}
     ctx.restore();
+    if(o.id===selectedObjectId){
+      ctx.save();ctx.shadowColor='transparent';ctx.strokeStyle='#ffe28c';ctx.lineWidth=3;ctx.setLineDash([7,5]);ctx.beginPath();ctx.moveTo(footprint[0].x,footprint[0].y);for(let i=1;i<footprint.length;i++)ctx.lineTo(footprint[i].x,footprint[i].y);ctx.closePath();ctx.stroke();ctx.setLineDash([]);drawResizeHandles(footprint);ctx.restore();
+    }
   }
 }
 function drawEditorProp(kind,w,h){
@@ -328,26 +387,25 @@ function drawEditorProp(kind,w,h){
   else if(kind==='fountain'){ctx.fillStyle='#d7d0bd';ctx.beginPath();ctx.ellipse(0,h*.18,w*.42,h*.22,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#6bc2e2';ctx.beginPath();ctx.ellipse(0,h*.13,w*.31,h*.14,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#d7f5ff';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,h*.10);ctx.quadraticCurveTo(w*.12,-h*.35,w*.02,-h*.42);ctx.stroke();}
   else if(kind==='playground'){ctx.fillStyle='#ef8356';ctx.fillRect(-w*.30,-h*.20,w*.12,h*.53);ctx.fillRect(w*.18,-h*.20,w*.12,h*.53);ctx.fillStyle='#f1c859';ctx.beginPath();ctx.moveTo(-w*.40,-h*.20);ctx.lineTo(0,-h*.46);ctx.lineTo(w*.40,-h*.20);ctx.closePath();ctx.fill();ctx.strokeStyle='#4e8bc5';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(0,-h*.10);ctx.lineTo(w*.35,h*.34);ctx.stroke();}
 }
-function drawResizeHandles(x,y,w,h){
+function drawResizeHandles(pts){
   const s=Math.max(10,12*cam.scale);
-  const pts=[[x,y,'nw'],[x+w,y,'ne'],[x,y+h,'sw'],[x+w,y+h,'se']];
-  for(const [px,py] of pts){
-    ctx.fillStyle='#ffe28c';ctx.fillRect(px-s/2,py-s/2,s,s);
-    ctx.strokeStyle='#1b2531';ctx.lineWidth=2;ctx.strokeRect(px-s/2,py-s/2,s,s);
+  for(const p of pts){
+    ctx.fillStyle='#ffe28c';ctx.fillRect(p.x-s/2,p.y-s/2,s,s);
+    ctx.strokeStyle='#1b2531';ctx.lineWidth=2;ctx.strokeRect(p.x-s/2,p.y-s/2,s,s);
   }
 }
 function drawEntrances(){
   for(const o of map.objects){
     if(!o.entrance)continue;
-    const p=gridToScreen(o.entrance.gx,o.entrance.gy),s=map.tileSize*cam.scale;
-    ctx.fillStyle='rgba(255,211,98,.86)';ctx.beginPath();ctx.arc(p.x+s/2,p.y+s/2,Math.max(5,s*.18),0,Math.PI*2);ctx.fill();
+    const p=gridToScreen(o.entrance.gx+.5,o.entrance.gy+.5),s=map.tileSize*cam.scale;
+    ctx.fillStyle='rgba(255,211,98,.86)';ctx.beginPath();ctx.arc(p.x,p.y,Math.max(4,s*.12),0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='#6b4b13';ctx.lineWidth=2;ctx.stroke();
   }
 }
-function drawGrid(s){
+function drawGrid(){
   ctx.strokeStyle='rgba(20,28,38,.30)';ctx.lineWidth=1;
-  for(let gx=0;gx<=map.cols;gx++){const p=gridToScreen(gx,0);ctx.beginPath();ctx.moveTo(p.x,gridToScreen(0,0).y);ctx.lineTo(p.x,gridToScreen(0,map.rows).y);ctx.stroke();}
-  for(let gy=0;gy<=map.rows;gy++){const p=gridToScreen(0,gy);ctx.beginPath();ctx.moveTo(gridToScreen(0,0).x,p.y);ctx.lineTo(gridToScreen(map.cols,0).x,p.y);ctx.stroke();}
+  for(let gx=0;gx<=map.cols;gx++){const a=gridToScreen(gx,0),b=gridToScreen(gx,map.rows);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+  for(let gy=0;gy<=map.rows;gy++){const a=gridToScreen(0,gy),b=gridToScreen(map.cols,gy);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
 }
 function actAt(e){
   const g=screenToGrid(e.clientX,e.clientY);
@@ -355,26 +413,22 @@ function actAt(e){
   if(mode==='paint'){setTile(g.gx,g.gy,selectedTile);}
   else if(mode==='erase'){const o=objectAt(g.gx,g.gy);if(o){map.objects=map.objects.filter(x=>x!==o);selectedObjectId=null;}else setTile(g.gx,g.gy,map.defaultTile);}
   else if(mode==='object'){
-    const o=objectAt(g.gx,g.gy);
+    const o=placingNewObject?null:objectAt(g.gx,g.gy);
     if(o){selectedObjectId=o.id;}
-    else{const obj=makeObject(selectedObject,g.gx,g.gy);map.objects.push(obj);selectedObjectId=obj.id;}
+    else if(selectedObject){const obj=makeObject(selectedObject,g.gx,g.gy);map.objects.push(obj);selectedObjectId=obj.id;placingNewObject=false;}
+    else toast('菱形2.5D素材を先に選んでね');
   }else if(mode==='entrance'){
     let o=activeObject()||objectAt(g.gx,g.gy);
-    if(o){o.entrance={gx:g.gx,gy:g.gy};selectedObjectId=o.id;}
+    if(o){o.entrance={gx:g.gx,gy:g.gy};o.entranceAuto=false;selectedObjectId=o.id;}
   }
   sync();
   draw();
 }
 function handleAt(clientX,clientY,o){
   if(!o)return null;
-  const p=gridToScreen(o.gx,o.gy),w=o.w*map.tileSize*cam.scale,h=o.h*map.tileSize*cam.scale;
+  const footprint=objectFootprint(o);
   const s=Math.max(14,16*cam.scale);
-  const pts=[
-    {handle:'nw',x:p.x,y:p.y},
-    {handle:'ne',x:p.x+w,y:p.y},
-    {handle:'sw',x:p.x,y:p.y+h},
-    {handle:'se',x:p.x+w,y:p.y+h}
-  ];
+  const pts=['nw','ne','se','sw'].map((handle,i)=>({handle,...footprint[i]}));
   return pts.find(pt=>Math.abs(clientX-cv.getBoundingClientRect().left-pt.x)<=s&&Math.abs(clientY-cv.getBoundingClientRect().top-pt.y)<=s)?.handle||null;
 }
 function updateCursor(e){
@@ -395,6 +449,7 @@ cv.addEventListener('pointerdown',e=>{
   pointerDown=true;
   if(e.button===2||space){pan={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y};cv.classList.add('panning');return;}
   if(mode==='object'){
+    if(placingNewObject){actAt(e);return;}
     const g=screenToGrid(e.clientX,e.clientY);
     const current=activeObject();
     const handle=handleAt(e.clientX,e.clientY,current);
@@ -431,7 +486,7 @@ cv.addEventListener('pointermove',e=>{
   }
   if(mode==='paint'||mode==='erase')actAt(e);
 });
-cv.addEventListener('pointerup',e=>{pointerDown=false;pan=null;objectDrag=null;cv.classList.remove('panning');updateCursor(e)});
+cv.addEventListener('pointerup',e=>{pointerDown=false;pan=null;objectDrag=null;cv.classList.remove('panning');updateCursor(e);draw()});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('wheel',e=>{
   e.preventDefault();
@@ -447,13 +502,13 @@ cv.addEventListener('wheel',e=>{
   }
   clampCam();draw();
 },{passive:false});
-window.addEventListener('keydown',e=>{if(e.code==='Space')space=true;if(e.key.toLowerCase()==='r'&&activeObject()&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)){e.preventDefault();rotateObject(activeObject(),90);}});
+window.addEventListener('keydown',e=>{if(e.code==='Space')space=true;if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='s'){e.preventDefault();save()}if(e.key.toLowerCase()==='r'&&activeObject()&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)){e.preventDefault();rotateObject(activeObject(),90);}});
 window.addEventListener('keyup',e=>{if(e.code==='Space')space=false;});
 function setMode(m){mode=m;for(const id of ['paintMode','objectMode','entranceMode','eraseMode'])$(id).classList.remove('active');$({paint:'paintMode',object:'objectMode',entrance:'entranceMode',erase:'eraseMode'}[m]).classList.add('active');sync();}
 function save(){localStorage.setItem(KEY,JSON.stringify(map));sync();toast('タイル式マップを保存しました');}
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d?.type==='town-tile-map')map=d;}catch(e){}initTiles();}
 function reset(){localStorage.removeItem(KEY);map.tiles=[];map.objects=[];initTiles();sync();draw();toast('初期マップに戻しました');}
-function loadSampleTown(){map=createSampleTown();selectedObjectId=null;cam={x:-80,y:520,scale:.72};save();clampCam();sync();draw();toast('橙美サンプル街を読み込みました');}
+function loadSampleTown(){map=createSampleTown();selectedObjectId=null;frameMap();applyStarterLayout();sync();draw();toast('菱形2.5D素材だけでサンプル街を読み込みました');}
 function resizeMap(){
   const old={cols:map.cols,rows:map.rows,tiles:[...map.tiles]};
   map.name=$('mapName').value||map.name;
@@ -466,41 +521,70 @@ function resizeMap(){
   map.objects=map.objects.filter(o=>o.gx<map.cols&&o.gy<map.rows);
   clampCam();sync();draw();toast('マップサイズを反映しました');
 }
-function rotateObject(o,delta){
+function quickValues(){return{x:Math.max(0,Math.min(map.cols-1,+$('quickX').value||0)),y:Math.max(0,Math.min(map.rows-1,+$('quickY').value||0)),w:Math.max(1,+$('quickW').value||1),h:Math.max(1,+$('quickH').value||1)}}
+function paintSelectedRect(){const q=quickValues();for(let y=q.y;y<Math.min(map.rows,q.y+q.h);y++)for(let x=q.x;x<Math.min(map.cols,q.x+q.w);x++)setTile(x,y,selectedTile);save();draw();toast(`${q.w}×${q.h}マスを塗って自動保存しました`)}
+function placeSelectedAt(){if(!selectedObject){toast('菱形2.5D素材を先に選んでね');return}const q=quickValues(),obj=makeObject(selectedObject,q.x,q.y);if(obj.category==='building')map.objects=map.objects.filter(o=>!(o.category==='building'&&o.gx===q.x&&o.gy===q.y));map.objects.push(obj);selectedObjectId=obj.id;placingNewObject=false;clampObject(obj);save();draw();toast(`${obj.label}を ${obj.gx},${obj.gy} に配置して自動保存しました`)}
+function setObjectRotation(o,target){
   if(!o)return;
-  o.rotation=(((Number(o.rotation)||0)+delta)%360+360)%360;
-  if(Math.abs(delta)%180===90){const oldW=o.w;o.w=o.h;o.h=oldW;}
-  clampObject(o);sync();draw();
+  const current=normalizeRotation(o.rotation),next=normalizeRotation(target);
+  if(current===next){sync();draw();return;}
+  if(current%180!==next%180){const oldW=o.w;o.w=o.h;o.h=oldW;}
+  o.rotation=next;
+  clampObject(o);if(o.category==='building')setEntranceForRotation(o);save();sync();draw();toast(`${o.label}：${ROTATION_LABELS[o.rotation]}`);
 }
+function rotateObject(o,delta){if(o)setObjectRotation(o,normalizeRotation((Number(o.rotation)||0)+delta));}
 function sync(){
   $('mapName').value=map.name;$('colsInput').value=map.cols;$('rowsInput').value=map.rows;$('tileSizeInput').value=map.tileSize;
   const o=activeObject();
-  $('selectionInfo').textContent=mode==='paint'?`地面: ${TILE_TYPES.find(t=>t.id===selectedTile)?.label||selectedTile}`:mode==='object'?(o?`選択: ${o.label} / ${o.gx},${o.gy} / ${o.w}×${o.h}マス / ${o.rotation||0}°`:`パーツ: ${selectedObject.label}`):mode==='entrance'?'入口にしたいマスをクリック':o?`選択: ${o.label} / ${o.gx},${o.gy}`:'選択なし';
+  $('selectionInfo').textContent=mode==='paint'?`地面: ${TILE_TYPES.find(t=>t.id===selectedTile)?.label||customTileFor(selectedTile)?.label||selectedTile}`:mode==='object'?(o?`選択: ${o.label} / ${o.gx},${o.gy} / ${o.w}×${o.h}マス / ${o.rotation||0}°`:selectedObject?`菱形2.5Dパーツ: ${selectedObject.label}`:'菱形2.5D素材を選んでね'):mode==='entrance'?'入口にしたいマスをクリック':o?`選択: ${o.label} / ${o.gx},${o.gy}`:'選択なし';
   $('objectForm').style.display=o?'block':'none';
-  if(o){$('objLabelInput').value=o.label;$('objWInput').value=o.w;$('objHInput').value=o.h;$('objToInput').value=o.to||'';$('objRotationInput').value=`${o.rotation||0}°`;}
+  if(o){$('objLabelInput').value=o.label;$('objWInput').value=o.w;$('objHInput').value=o.h;$('objToInput').value=o.to||'';$('objRotationInput').value=o.category==='building'?`${normalizeRotation(o.rotation)}°／${ROTATION_LABELS[normalizeRotation(o.rotation)]}`:`${normalizeRotation(o.rotation)}°`;}
   $('objectList').innerHTML='';
   for(const obj of map.objects){const opt=document.createElement('option');opt.value=obj.id;opt.textContent=`${obj.label} (${obj.gx},${obj.gy}) → ${obj.to}`;opt.selected=obj.id===selectedObjectId;$('objectList').appendChild(opt);}
   $('jsonOut').value=JSON.stringify(map,null,2);
 }
 function buildPalettes(){
   for(const t of TILE_TYPES){const b=document.createElement('button');b.innerHTML=`<span style="display:inline-block;width:14px;height:14px;background:${t.color};border:1px solid #fff4;margin-right:6px;vertical-align:-2px"></span>${t.label}`;b.onclick=()=>{selectedTile=t.id;setMode('paint');sync();};$('tilePalette').appendChild(b);}
-  for(const category of [{id:'building',label:'建物'},{id:'prop',label:'街の小物・設備'}]){
-    const title=document.createElement('div');title.className='category-title';title.textContent=category.label;$('objectPalette').appendChild(title);
-    for(const t of OBJECT_TYPES.filter(x=>(x.category||'building')===category.id)){const b=document.createElement('button');b.textContent=`${t.icon||'＋'} ${t.label}`;b.onclick=()=>{selectedObject=t;setMode('object');sync();};$('objectPalette').appendChild(b);}
-  }
 }
+function assetMatches(t){const q=$('assetSearch').value.trim().toLowerCase();return !q||t.label.toLowerCase().includes(q)}
+function renderCustomBuildingPalette(){const root=$('customBuildingPalette'),items=customBuildings.filter(assetMatches);root.innerHTML='';if(!items.length){root.innerHTML='<div class="library-empty">条件に合う自作建物・小物がありません。</div>';return}for(const t of items){const b=document.createElement('button');b.className='custom-building-button';const preview=document.createElement('img');preview.src=t.assetUrl;preview.alt='';const label=document.createElement('span'),fourway=t.category==='building'&&[0,90,180,270].every(rotation=>t.assetUrls?.[rotation]);label.textContent=`${t.label}${fourway?'　↻4方向':''}`;b.append(preview,label);b.onclick=()=>{selectedObject=t;selectedObjectId=null;placingNewObject=true;setMode('object');sync()};root.appendChild(b)}}
+function renderCustomTilePalette(){const root=$('customTilePalette'),items=customTiles.filter(assetMatches);root.innerHTML='';if(!items.length){root.innerHTML='<div class="library-empty">条件に合う自作の床・水辺がありません。</div>';return}for(const t of items){const b=document.createElement('button');b.className='custom-building-button';const preview=document.createElement('img');preview.src=t.assetUrl;preview.alt='';const label=document.createElement('span');label.textContent=t.label;b.append(preview,label);b.onclick=()=>{selectedTile=t.id;selectedObjectId=null;setMode('paint');sync()};root.appendChild(b)}}
+function refreshQuickAssetSelect(){const select=$('quickAssetSelect'),current=select.value;select.innerHTML='<option value="">左の素材一覧と連動</option>';const addGroup=(label,items,prefix)=>{const group=document.createElement('optgroup');group.label=label;for(const item of items){const option=document.createElement('option');option.value=`${prefix}:${prefix==='tile'?item.id:item.customBuildingId}`;option.textContent=item.label;group.appendChild(option)}select.appendChild(group)};addGroup('床・水辺',customTiles,'tile');addGroup('建物・小物',customBuildings,'object');if([...select.options].some(o=>o.value===current))select.value=current}
+function archiveIncompatibleMapAssets(){const ids=new Set(customBuildings.map(b=>b.customBuildingId)),legacy=map.objects.filter(o=>!o.customBuildingId||!ids.has(o.customBuildingId));if(!legacy.length)return 0;const archived=new Map((map.legacyObjects||[]).map(o=>[o.id,o]));for(const o of legacy)archived.set(o.id,o);map.legacyObjects=[...archived.values()];map.objects=map.objects.filter(o=>o.customBuildingId&&ids.has(o.customBuildingId));if(legacy.some(o=>o.id===selectedObjectId))selectedObjectId=null;localStorage.setItem(KEY,JSON.stringify(map));return legacy.length}
+async function loadCustomBuildings(){for(const b of [...customBuildings,...customTiles]){const urls=new Set([b.assetUrl,...Object.values(b.assetUrls||{})].filter(Boolean));for(const url of urls)URL.revokeObjectURL(url)}const allRecords=(await getLibraryBuildings()).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)),records=allRecords.filter(isDiamondRecord),hidden=allRecords.length-records.length,tiles=records.filter(r=>r.category==='tile'),objects=records.filter(r=>r.category!=='tile');customTiles=tiles.filter(r=>r.imageBlob).map(r=>({id:`custom_tile_${r.id}`,tileLibraryId:r.id,label:r.name||'自作タイル',assetUrl:URL.createObjectURL(r.imageBlob),record:r}));customBuildings=objects.filter(r=>r.imageBlob).map(r=>{const assetUrls={};for(const rotation of [0,90,180,270]){const blob=r.imageBlobs?.[rotation];if(blob instanceof Blob)assetUrls[rotation]=URL.createObjectURL(blob)}const assetUrl=assetUrls[0]||URL.createObjectURL(r.imageBlob);return{id:`custom_${r.id}`,customBuildingId:r.id,label:r.name||(r.category==='prop'?'自作小物':'自作建物'),icon:r.category==='prop'?'🌳':'🏠',category:r.category==='prop'?'prop':'building',w:Number(r.width)||1,h:Number(r.depth)||1,to:r.to||'',assetUrl,assetUrls,record:r}});const archived=archiveIncompatibleMapAssets(),fourwayCount=customBuildings.filter(b=>b.category==='building'&&[0,90,180,270].every(rotation=>b.assetUrls?.[rotation])).length;$('libraryCount').textContent=`菱形2.5D対応 ${records.length}件（床・水辺 ${customTiles.length}件／建物・小物 ${customBuildings.length}件／4方向建物 ${fourwayCount}件）${hidden?`／旧素材 ${hidden}件を非表示`:''}`;refreshQuickAssetSelect();renderCustomTilePalette();renderCustomBuildingPalette();sync();draw();if(archived)toast(`角度の合わない旧パーツ ${archived}個を非表示にしました`);return{total:records.length,tiles:customTiles.length,objects:customBuildings.length,fourway:fourwayCount,hidden}}
+async function reloadDiamondLibrary(){const button=$('reloadBuildingsBtn'),tileRoot=$('customTilePalette'),objectRoot=$('customBuildingPalette');button.disabled=true;button.textContent='菱形素材を読込中…';$('assetSearch').value='';$('libraryCount').textContent='菱形2.5D素材を読み込んでいます…';tileRoot.innerHTML='<div class="library-empty">床・水辺を読み込み中…</div>';objectRoot.innerHTML='<div class="library-empty">建物・小物を読み込み中…</div>';try{const result=await loadCustomBuildings();for(const root of [tileRoot,objectRoot]){root.classList.remove('library-refreshed');void root.offsetWidth;root.classList.add('library-refreshed')}if(result.total)toast(`菱形2.5D素材を ${result.total}件 読み込みました`);else toast('菱形2.5D素材はまだありません。メーカーで作って登録してね')}catch(error){console.error(error);customTiles=[];customBuildings=[];$('libraryCount').textContent='素材の読み込みに失敗しました。もう一度押してね。';tileRoot.innerHTML='<div class="library-empty">床・水辺を読み込めませんでした。</div>';objectRoot.innerHTML='<div class="library-empty">建物・小物を読み込めませんでした。</div>';toast('素材の読み込みに失敗しました')}finally{button.disabled=false;button.textContent='菱形素材を再読込'}}
+function ensureCityBuildingLibrary(){return new Promise((resolve,reject)=>{const frame=document.createElement('iframe');frame.hidden=true;frame.setAttribute('aria-hidden','true');const timer=setTimeout(()=>finish(new Error('seed timeout')),60000);function finish(error,result={added:0,upgraded:0}){clearTimeout(timer);window.removeEventListener('message',onMessage);frame.remove();error?reject(error):resolve(result)}function onMessage(event){if(event.origin!==location.origin||event.source!==frame.contentWindow||event.data?.type!=='orengaoka-city-library-seeded')return;event.data.error?finish(new Error('seed failed')):finish(null,{added:Number(event.data.added)||0,upgraded:Number(event.data.upgraded)||0})}window.addEventListener('message',onMessage);frame.src=`town_building_maker.html?seedLibrary=1&v=citypack3`;document.body.appendChild(frame)})}
+function applyStarterLayout(){const tileByName=name=>customTiles.find(t=>t.label===name),objectByName=name=>customBuildings.find(t=>t.label===name);const paint=(name,x,y,w,h)=>{const t=tileByName(name);if(!t)return;for(let yy=y;yy<Math.min(map.rows,y+h);yy++)for(let xx=x;xx<Math.min(map.cols,x+w);xx++)setTile(xx,yy,t.id)};paint('橙ヶ丘の石畳',8,29,10,3);paint('橙ヶ丘の石畳',12,18,6,3);paint('橙ヶ丘の川',37,0,3,28);paint('橙ヶ丘公園の芝生',22,14,8,4);const buildings=[['橙ヶ丘駅',8,25,'station'],['からあげ屋',7,15,'karaage_shop'],['星野文具店',16,14,'hoshino_stationery'],['青太のアパート',5,6,'aota_room'],['橙ヶ丘学園',27,7,'school']];for(const [name,gx,gy,to] of buildings){const t=objectByName(name);if(!t)continue;map.objects=map.objects.filter(o=>!(o.category==='building'&&o.gx===gx&&o.gy===gy));const o=makeObject(t,gx,gy);o.to=to;map.objects.push(o)}const props=[['橙ヶ丘の街路樹',22,14],['橙ヶ丘の街路樹',29,15],['橙ヶ丘の街路樹',11,18],['商店街のベンチ',24,16],['商店街のベンチ',13,20],['橙色の街灯',14,23],['橙色の街灯',20,23],['橙色の街灯',26,23],['橙色の街灯',10,29],['駅前の花壇',9,29],['駅前の花壇',12,29],['駅前の花壇',24,14],['星野文具店前のポスト',21,17]];const starterIds=new Set(props.map(([name])=>objectByName(name)?.customBuildingId).filter(Boolean));map.objects=map.objects.filter(o=>!starterIds.has(o.customBuildingId));for(const [name,gx,gy] of props){const t=objectByName(name);if(t)map.objects.push(makeObject(t,gx,gy))}selectedObjectId=null;save();draw();toast('登録素材で街を配置して保存しました')}
+function blobToDataURL(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob)})}
+function dataURLToBlob(url){const [meta,data]=url.split(','),type=(meta.match(/data:([^;]+)/)||[])[1]||'image/png',bytes=atob(data),arr=new Uint8Array(bytes.length);for(let i=0;i<bytes.length;i++)arr[i]=bytes.charCodeAt(i);return new Blob([arr],{type})}
+function downloadJSON(data,name){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),800)}
 $('paintMode').onclick=()=>setMode('paint');$('objectMode').onclick=()=>setMode('object');$('entranceMode').onclick=()=>setMode('entrance');$('eraseMode').onclick=()=>setMode('erase');
 $('saveBtn').onclick=save;$('sampleBtn').onclick=loadSampleTown;$('resetBtn').onclick=reset;$('resizeMapBtn').onclick=resizeMap;
+$('starterLayoutBtn').onclick=applyStarterLayout;
+$('paintRectBtn').onclick=paintSelectedRect;$('placeSelectedBtn').onclick=placeSelectedAt;
+$('quickAssetSelect').onchange=e=>{const [type,id]=e.target.value.split(':');if(type==='tile'){const t=customTiles.find(x=>x.id===id);if(t){selectedTile=t.id;selectedObjectId=null;setMode('paint')}}else if(type==='object'){const t=customBuildings.find(x=>x.customBuildingId===id);if(t){selectedObject=t;selectedObjectId=null;placingNewObject=true;setMode('object')}}sync()};
 $('objectList').onchange=e=>{selectedObjectId=e.target.value;sync();draw();};
 $('deleteObjectBtn').onclick=()=>{const o=activeObject();if(!o)return;map.objects=map.objects.filter(x=>x!==o);selectedObjectId=null;sync();draw();};
 $('buildingMakerBtn').onclick=()=>location.href='town_building_maker.html';
-$('centerObjectBtn').onclick=()=>{const o=activeObject();if(!o)return;cam.x=o.gx*map.tileSize-VIEW.w/cam.scale/2;cam.y=o.gy*map.tileSize-VIEW.h/cam.scale/2;clampCam();draw();};
-$('applyObjectBtn').onclick=()=>{const o=activeObject();if(!o)return;o.label=$('objLabelInput').value||o.label;o.w=+$('objWInput').value||o.w;o.h=+$('objHInput').value||o.h;o.to=$('objToInput').value||o.to;clampObject(o);sync();draw();};
+$('assetMakerBtn').onclick=()=>location.href='town_asset_maker.html';
+$('reloadBuildingsBtn').onclick=reloadDiamondLibrary;
+$('assetSearch').oninput=()=>{renderCustomTilePalette();renderCustomBuildingPalette()};
+$('editBuildingBtn').onclick=()=>{let t=selectedObject?.customBuildingId?selectedObject:customBuildings.find(x=>x.customBuildingId===activeObject()?.customBuildingId);if(!t&&customTileFor(selectedTile))t=customTileFor(selectedTile);if(!t?.record){toast('自作素材を選んでね');return}if(t.record.category==='tile'||t.record.category==='prop'){localStorage.setItem('orengaoka-asset-maker-edit',JSON.stringify({id:t.record.id,name:t.record.name,config:t.record.config}));location.href=`town_asset_maker.html?mode=${t.record.category}`}else{localStorage.setItem('orengaoka-building-maker-edit',JSON.stringify({id:t.record.id,name:t.record.name,config:t.record.config}));location.href='town_building_maker.html'}};
+$('deleteBuildingBtn').onclick=async()=>{let t=selectedObject?.customBuildingId?selectedObject:customBuildings.find(x=>x.customBuildingId===activeObject()?.customBuildingId),libraryId=t?.customBuildingId;if(!t&&customTileFor(selectedTile)){t=customTileFor(selectedTile);libraryId=t.tileLibraryId}if(!t){toast('削除する自作素材を選んでね');return}await deleteLibraryBuilding(libraryId);map.objects=map.objects.filter(o=>o.customBuildingId!==libraryId);if(t.tileLibraryId)map.tiles=map.tiles.map(id=>id===t.id?map.defaultTile:id);selectedObjectId=null;selectedObject=null;selectedTile='concrete';await loadCustomBuildings();sync();toast('自作素材の登録を削除しました')};
+$('exportBuildingsBtn').onclick=async()=>{const records=await getLibraryBuildings();if(!records.length){toast('保存する自作建物がありません');return}const buildings=[];for(const r of records){const {imageBlob,imageBlobs,...meta}=r,imageVariantsDataURL={};for(const rotation of [0,90,180,270])if(imageBlobs?.[rotation] instanceof Blob)imageVariantsDataURL[rotation]=await blobToDataURL(imageBlobs[rotation]);buildings.push({...meta,imageDataURL:await blobToDataURL(imageBlob),imageVariantsDataURL})}downloadJSON({type:'orengaoka-building-pack',version:2,buildings},'orengaoka_building_pack.json');toast('4方向入りの建物パックを書き出しました')};
+$('importBuildingsBtn').onclick=()=>$('buildingPackInput').click();
+$('buildingPackInput').onchange=async e=>{try{const data=JSON.parse(await e.target.files[0].text());if(data?.type!=='orengaoka-building-pack'||!Array.isArray(data.buildings))throw new Error('invalid');for(const item of data.buildings){const {imageDataURL,imageVariantsDataURL,...record}=item;record.imageBlob=dataURLToBlob(imageDataURL);record.imageBlobs={};for(const [rotation,url] of Object.entries(imageVariantsDataURL||{}))record.imageBlobs[rotation]=dataURLToBlob(url);await putLibraryBuilding(record)}await loadCustomBuildings();toast(`${data.buildings.length}件の建物を4方向込みで読み込みました`)}catch(err){console.error(err);toast('建物パックを読み込めませんでした')}finally{e.target.value=''}};
+$('centerObjectBtn').onclick=()=>{const o=activeObject();if(!o)return;const p=gridToWorld(o.gx+o.w*.5,o.gy+o.h*.5);cam.x=p.x-VIEW.w/cam.scale*.5;cam.y=p.y-VIEW.h/cam.scale*.5;clampCam();draw();};
+$('applyObjectBtn').onclick=()=>{const o=activeObject();if(!o)return;o.label=$('objLabelInput').value||o.label;o.w=+$('objWInput').value||o.w;o.h=+$('objHInput').value||o.h;o.to=$('objToInput').value||o.to;clampObject(o);save();draw();toast('パーツ設定を反映して自動保存しました')};
 $('rotateLeftBtn').onclick=()=>rotateObject(activeObject(),-90);
 $('rotateRightBtn').onclick=()=>rotateObject(activeObject(),90);
+for(const button of document.querySelectorAll('[data-object-rotation]')){
+  button.onpointerdown=e=>e.stopPropagation();
+  button.onclick=e=>{e.stopPropagation();setObjectRotation(activeObject(),Number(button.dataset.objectRotation));};
+}
 $('copyBtn').onclick=async()=>{await navigator.clipboard.writeText($('jsonOut').value);toast('JSONをコピーしました');};
 window.addEventListener('resize',resize);
-buildPalettes();load();sync();resize();
+buildPalettes();load();sync();resize();frameMap();draw();loadCustomBuildings().then(async()=>{try{const result=await ensureCityBuildingLibrary();if(result.added||result.upgraded){await loadCustomBuildings();toast(`建物を4方向化しました（追加${result.added}／更新${result.upgraded}）`)}}catch(error){console.error(error)}if(new URLSearchParams(location.search).get('starter')==='1')applyStarterLayout()}).catch(console.error);
 if(new URLSearchParams(location.search).get('sample')==='1')loadSampleTown();
 </script>
 </body>
